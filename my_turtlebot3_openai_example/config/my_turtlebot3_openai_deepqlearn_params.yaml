@@ -1,0 +1,48 @@
+turtlebot3: #namespace
+
+    task_and_robot_environment_name: 'TurtleBot3World-v0'
+    ros_ws_abspath: "/home/ubuntu/simulation_ws"
+    running_step: 0.04 # amount of time the control will be executed
+    pos_step: 0.016     # increment in position for each command
+    
+    #dqn parameters
+    gamma: 0.999
+    epsilon_start: 0.9  #epsilon: (exploration) random choice factor
+    epsilon_end: 0.05
+    epsilon_decay: 2000
+    n_episodes: 3000
+    target_update: 10
+    batch_size: 128
+    learning_rate: 0.001
+    
+    # Checkpoint Loading Parameters
+    resume_from_checkpoint: true  # Set to true to resume training from a saved model
+    checkpoint_file: "final_model.pth"  # Which checkpoint to load (default: best_model.pth)
+
+    running_step: 0.06 # Time for each step
+
+    # Curriculum Learning Parameters
+    curriculum_enabled: true
+    stage_0_threshold: 300.0  # Average reward to advance from Stage 0 to Stage 1
+    stage_1_threshold: 500.0  # Average reward to advance from Stage 1 to Stage 2
+    curriculum_evaluation_window: 25  # Number of episodes to average for stage transition
+
+    # Curriculum Step Thresholds & Rewards
+    step_milestone_reward: 100.0  # Reward for reaching min_num_steps
+    survival_reward: 200.0        # Reward for reaching max_num_steps (surviving)
+    distance_milestone_reward: 10.0 # Reward for each distance milestone
+    distance_milestone_interval: 1.0 # Meters
+    
+    # Stage 0
+    stage_0_min_steps: 100
+    stage_0_max_steps: 200
+    
+    # Stage 1
+    stage_1_min_steps: 300
+    stage_1_max_steps: 400
+    
+    # Stage 2 (and beyond default)
+    stage_2_min_steps: 400
+    stage_2_max_steps: 550
+    
+

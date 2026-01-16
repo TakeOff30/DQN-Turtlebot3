@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  turtlebot_learner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ros_rl_dev
+    container_name: ros_training
+    tty: true
+    stdin_open: true
+    environment:
+      # Connect to X server on Windows host for GUI
+      # Option 1: Use host.docker.internal (works with Docker Desktop)
+      - DISPLAY=host.docker.internal:0.0
+    volumes:
+      # Map the source code from your Windows host to the Container
+      - ./my_turtlebot3_openai_example:/home/ubuntu/simulation_ws/src/my_turtlebot3_openai_example
+      - ./openai_ros:/home/ubuntu/simulation_ws/src/openai_ros
+      - ./turtlebot3:/home/ubuntu/simulation_ws/src/turtlebot3
+      
+      # Map the output directories for persistence
+      - ./my_turtlebot3_openai_example/trained_models:/home/ubuntu/simulation_ws/src/my_turtlebot3_openai_example/trained_models
+      - ./my_turtlebot3_openai_example/training_reports:/home/ubuntu/simulation_ws/src/my_turtlebot3_openai_example/training_reports
+
+    network_mode: host
