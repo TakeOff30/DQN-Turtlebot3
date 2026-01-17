@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 WORKDIR /catkin_build_ws
 RUN /bin/bash -c "source /opt/ros/noetic/setup.sh; rosdep init && rosdep update; \
-                  source /opt/ros/noetic/setup.sh; catkin init; catkin config --extend /opt/ros/noetic; \
-                  source /opt/ros/noetic/setup.sh; catkin build;"
+    source /opt/ros/noetic/setup.sh; catkin init; catkin config --extend /opt/ros/noetic; \
+    source /opt/ros/noetic/setup.sh; catkin build;"
 
 
 WORKDIR /catkin_make_ws

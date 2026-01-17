@@ -18,7 +18,7 @@ turtlebot3: #namespace
 
     # Episode Management
     max_episode_steps: 1000 # Maximum number of steps per episode before forced termination
-    
+
     # Reward System (New weighted obstacle penalty format)
     # Terminal rewards are hardcoded in _compute_reward():
     #   - Success (goal reached): +100
@@ -27,7 +27,7 @@ turtlebot3: #namespace
     #   - Yaw alignment reward: 1.0 - (2.0 * |goal_angle| / pi)
     #   - Obstacle penalty: weighted by direction and proximity (front obstacles penalized 10x more)
     #   - Danger zone: 0.5m, Safety margin: 0.2m
-    
+
     # DQN Training Parameters
     gamma: 0.99 # Discount factor for future rewards
     epsilon_start: 1.0 # Initial exploration rate
@@ -38,7 +38,7 @@ turtlebot3: #namespace
     target_update: 10 # Frequency (in episodes) to update target network
     learning_rate: 0.001 # Learning rate for RMSprop optimizer
     running_step: 0.1 # Time step for simulation (not actively used)
-    
+
     # Checkpoint Management
     resume_from_checkpoint: false # Whether to resume training from a saved checkpoint
-    checkpoint_file: "best_model.pth" # Name of checkpoint file to load when resuming
+    checkpoint_file: 'best_model.pth' # Name of checkpoint file to load when resuming
