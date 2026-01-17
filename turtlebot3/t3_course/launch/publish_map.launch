@@ -1,0 +1,13 @@
+<launch>
+  <arg name="model" default="waffle_naked" doc="model type [burger, waffle]"/>
+
+  <!-- Turtlebot3 -->
+  <!-- <include file="$(find turtlebot3_bringup)/launch/turtlebot3_remote.launch" /> -->
+
+  <!-- Map server -->
+  <arg name="map_file" default="$(find t3_course)/maps/mymap_empty.yaml"/>
+  <!-- <arg name="map_file" default="/home/user/catkin_ws/src/my_map.yaml"/> -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+  </node>
+  
+</launch>

@@ -1,0 +1,32 @@
+turtlebot3: #namespace
+
+    n_actions: 3 # We have 3 actions, Forwards,TurnLeft,TurnRight
+    n_observations: 24 # (not used) this values must be equal to 360/new_ranges 
+
+    speed_step: 1.0 # Time to wait in the reset phases
+
+    linear_forward_speed: 0.5 # Spwwed for ging fowards
+    linear_turn_speed: 0.05 # Lienare speed when turning
+    angular_speed: 0.3 # Angular speed when turning Left or Right
+    init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
+    init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode
+    
+    new_ranges: 30 # How many laser readings we jump in each observation reading, the bigger the less laser resolution
+    min_range: 0.13 # Minimum meters below wich we consider we have crashed
+    max_laser_value: 6 # Value considered Ok, no wall
+    min_laser_value: 0 # Value considered there is an obstacle or crashed
+    max_linear_aceleration: 5.0 # Linear acceleration value in which we consider Turtlebot 3 has crashed into something
+    
+    forwards_reward: 10 # Points Given to go forwards
+    turn_reward: 1 # Points Given to turn as action
+    end_episode_points: 300 # Points given when ending an episode
+    
+    # Curriculum Learning Parameters
+    curriculum_stage: 0  # 0 = collision avoidance, 1 = fast movement, 2 = maximize distance
+    velocity_reward_weight: 0.0  # Weight for velocity-based rewards (0.0 for stage 0)
+    stopping_penalty: 5.0  # Penalty for stopping or very slow movement (used in stage 1+)
+    distance_reward_weight: 0.0  # Weight for distance-based rewards (0.0 for stages 0-1)
+    safe_distance_threshold: 1  # Meters - threshold for safe distance from obstacles
+    min_velocity_threshold: 0.05  # Minimum velocity threshold below which stopping penalty applies
+    
+
