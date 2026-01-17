@@ -1,0 +1,46 @@
+# System and Editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+env/
+venv/
+*.egg-info/
+.eggs/
+
+# C++ / CMake / ROS Build artifacts
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+Makefile
+!/**/doc/Makefile
+catkin_generated/
+install_manifest.txt
+devel/
+build/
+install/
+log/
+.catkin_workspace
+.catkin_tools
+
+# Generated ROS messages/services
+msg_gen/
+srv_gen/
+generated/
+bin/
+lib/
+
+# ROS Specific
+*.bag
