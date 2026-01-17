@@ -6,25 +6,26 @@ from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow
 import pyqtgraph
-import rclpy
-from rclpy.node import Node
+import rospy
 from std_msgs.msg import Float32MultiArray
 
 
-class GraphSubscriber(Node):
+class GraphSubscriber(threading.Thread):
 
     def __init__(self, window):
-        super().__init__('graph')
+        super(GraphSubscriber, self).__init__()
 
         self.window = window
-
-        self.subscription = self.create_subscription(
-            Float32MultiArray,
+        self.daemon = True
+        
+    def run(self):
+        
+        rospy.Subscriber(
             '/result',
-            self.data_callback,
-            10
+            Float32MultiArray,
+            self.data_callback
         )
-        self.subscription
+        rospy.spin()
 
     def data_callback(self, msg):
         self.window.receive_data(msg)
@@ -45,10 +46,7 @@ class Window(QMainWindow):
 
         self.plot()
 
-        self.ros_subscriber = GraphSubscriber(self)
-        self.ros_thread = threading.Thread(
-            target=rclpy.spin, args=(self.ros_subscriber,), daemon=True
-        )
+        self.ros_thread = GraphSubscriber(self)
         self.ros_thread.start()
 
     def receive_data(self, msg):
@@ -78,22 +76,18 @@ class Window(QMainWindow):
         self.qValuePlt.plot(self.ep, self.rewards, pen=(0, 255, 0), clear=True)
 
     def closeEvent(self, event):
-        if self.ros_subscriber is not None:
-            self.ros_subscriber.destroy_node()
-        rclpy.shutdown()
+        rospy.signal_shutdown("Window closed")
         event.accept()
 
 
 def main():
-    rclpy.init()
+    rospy.init_node('result_graph_node',anonymous=True)
     app = QApplication(sys.argv)
     win = Window()
 
     def shutdown_handler(sig, frame):
         print('shutdown')
-        if win.ros_subscriber is not None:
-            win.ros_subscriber.destroy_node()
-        rclpy.shutdown()
+        rospy.signal_shutdown('SIGINT received')
         app.quit()
 
     signal.signal(signal.SIGINT, shutdown_handler)
