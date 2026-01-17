@@ -7,6 +7,9 @@ from geometry_msgs.msg import Vector3
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
 import os
+import random
+import math
+from visualization_msgs.msg import Marker
 
 
 class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
@@ -69,7 +72,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.max_laser_value = rospy.get_param('/turtlebot3/max_laser_value')
         self.min_laser_value = rospy.get_param('/turtlebot3/min_laser_value')
         self.max_linear_aceleration = rospy.get_param('/turtlebot3/max_linear_aceleration')
-
+        
+        self.max_episode_steps = rospy.get_param('/turtlebot3/max_episode_steps')
+        
+        # Goal position - randomized each episode
+        self.goal_x = random.uniform(-4.0, 4.0)
+        self.goal_y = random.uniform(-4.0, 4.0)
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
@@ -84,53 +92,28 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
-        # Rewards
-        self.forwards_reward = rospy.get_param("/turtlebot3/forwards_reward")
-        self.turn_reward = rospy.get_param("/turtlebot3/turn_reward")
-        self.end_episode_points = rospy.get_param("/turtlebot3/end_episode_points")
-
-        # Curriculum Learning Parameters
-        self.curriculum_stage = rospy.get_param("/turtlebot3/curriculum_stage", 0)
-        self.velocity_reward_weight = rospy.get_param("/turtlebot3/velocity_reward_weight", 0.0)
-        self.stopping_penalty = rospy.get_param("/turtlebot3/stopping_penalty", 0.0)
-        self.distance_reward_weight = rospy.get_param("/turtlebot3/distance_reward_weight", 0.0)
-        self.safe_distance_threshold = rospy.get_param("/turtlebot3/safe_distance_threshold", 1.0)
-        self.min_velocity_threshold = rospy.get_param("/turtlebot3/min_velocity_threshold", 0.05)
-        
-        # New Rewards and Threhsolds
-        self.step_milestone_reward = rospy.get_param("/turtlebot3/step_milestone_reward", 100.0)
-        self.survival_reward = rospy.get_param("/turtlebot3/survival_reward", 200.0)
-        self.distance_milestone_reward = rospy.get_param("/turtlebot3/distance_milestone_reward", 10.0)
-        self.distance_milestone_interval = rospy.get_param("/turtlebot3/distance_milestone_interval", 1.0)
-        
-        # Stages Limits
-        self.stage_0_min_steps = rospy.get_param("/turtlebot3/stage_0_min_steps", 300)
-        self.stage_0_max_steps = rospy.get_param("/turtlebot3/stage_0_max_steps", 500)
-        
-        self.stage_1_min_steps = rospy.get_param("/turtlebot3/stage_1_min_steps", 500)
-        self.stage_1_max_steps = rospy.get_param("/turtlebot3/stage_1_max_steps", 700)
-        
-        self.stage_2_min_steps = rospy.get_param("/turtlebot3/stage_2_min_steps", 700)
-        self.stage_2_max_steps = rospy.get_param("/turtlebot3/stage_2_max_steps", 1000)
-
         self.cumulated_steps = 0.0
-        self.previous_position = None
-        self.current_velocity = 0.0
         
-        # Current Stage Limits
-        self.current_min_steps = self.stage_0_min_steps
-        self.current_max_steps = self.stage_0_max_steps
         
-        # Initialize reward details for info
-        self.reward_props = {}
 
-        rospy.logwarn("="*50)
-        rospy.logwarn("CURRICULUM LEARNING INITIALIZED")
-        rospy.logwarn("Current Stage: " + str(self.curriculum_stage))
-        rospy.logwarn("Stage 0: Basic collision avoidance")
-        rospy.logwarn("Stage 1: Fast continuous movement")
-        rospy.logwarn("Stage 2: Maximize distance from obstacles")
-        rospy.logwarn("="*50)
+    def _publish_goal_marker(self):
+        """Publish visual marker for goal in RViz/Gazebo"""
+        marker = Marker()
+        marker.header.frame_id = "odom"
+        marker.type = Marker.CYLINDER
+        marker.action = Marker.ADD
+        marker.pose.position.x = self.goal_x
+        marker.pose.position.y = self.goal_y
+        marker.pose.position.z = 0.1
+        marker.scale.x = 0.5
+        marker.scale.y = 0.5
+        marker.scale.z = 0.2
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        marker.color.a = 0.8
+        
+        self.goal_marker_pub.publish(marker)
 
 
     def _set_init_pose(self):
@@ -150,28 +133,20 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         of an episode.
         :return:
         """
-        # For Info Purposes
-        self.cumulated_reward = 0.0
-        # Set to false Done, because its calculated asyncronously
-        self._episode_done = False
         
-        # Reset velocity tracking for curriculum learning
-        odom = self.get_odom()
-        self.previous_position = odom.pose.pose.position
-        self.initial_position = odom.pose.pose.position
-        self.current_velocity = 0.0
+        # Robot position tracking
+        self.robot_x = 0.0
+        self.robot_y = 0.0
+        self.robot_yaw = 0.0
         
-        # New Envs
-        self.episode_steps = 0
-        self.max_distance_milestone_reached = 0.0
-        self.reward_props = {
-            'base': 0.0,
-            'velocity': 0.0,
-            'distance_clearance': 0.0,
-            'step_milestone': 0.0,
-            'survival': 0.0,
-            'distance_traveled_milestone': 0.0
-        }
+        self.succeed = False
+        self.fail = False
+        
+        # Reset episode step counter
+        self.current_episode_step = 0
+        
+        self.goal_marker_pub = rospy.Publisher('/goal_marker', Marker, queue_size=1)
+        self._publish_goal_marker()
 
 
     def _set_action(self, action):
@@ -198,6 +173,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         # We tell TurtleBot2 the linear and angular speed to set to execute
         self.move_base(linear_speed, angular_speed, epsilon=0.05, update_rate=10)
+        
+        # Increment episode step counter
+        self.current_episode_step += 1
 
         rospy.logdebug("END Set Action ==>"+str(action))
 
@@ -209,6 +187,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         :return:
         """
         rospy.logdebug("Start Get Observation ==>")
+        
+        # Update robot position
+        self._update_robot_position()
+        
         # We get the laser scan data
         laser_scan = self.get_laser_scan()
 
@@ -219,217 +201,140 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations
-
-
+    
     def _is_done(self, observations):
-
-        if self._episode_done:
-            rospy.logerr("TurtleBot2 is Too Close to wall==>")
+        
+        if self._is_failed(observations) or self._is_succeded(observations):
+            return True
         else:
-            rospy.logwarn("TurtleBot2 is NOT close to a wall ==>")
+            return False
 
-        # Now we check if it has crashed based on the imu
+    def _is_failed(self, observations):
+            
         imu_data = self.get_imu()
         linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
         if linear_acceleration_magnitude > self.max_linear_aceleration:
             rospy.logerr("TurtleBot2 Crashed==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
-            self._episode_done = True
-        else:
-            rospy.logerr("DIDNT crash TurtleBot2 ==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
+            self.fail = True
 
-        # Check for Max Steps (Survival)
-        if self.episode_steps >= self.current_max_steps:
-            rospy.logwarn("TurtleBot3 Survived Max Steps ==> " + str(self.episode_steps))
-            self._episode_done = True
+        laser_scan = self.get_laser_scan()
+        laser_data = self.discretize_scan_observation(laser_scan, self.new_ranges)
+        min_laser_scan = min(laser_data)
+        if self.min_range > min_laser_scan > 0:
+            self.fail = True
+        
+        # Check if maximum episode steps reached
+        if self.current_episode_step >= self.max_episode_steps:
+            rospy.logwarn("Max episode steps reached: %d" % self.current_episode_step)
+            self.fail = True
 
-        return self._episode_done
-
-    def step(self, action):
-        obs, reward, done, info = super(TurtleBot3WorldEnv, self).step(action)
-        info.update(self.reward_props)
-        return obs, reward, done, info
+        return self.fail
+    
+    def _is_succeded(self, observations):
+        """Check if robot has reached the goal"""
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        distance_to_goal = math.sqrt(dx**2 + dy**2)
+        
+        if distance_to_goal < 0.2:
+            self.succeed = True
+            rospy.loginfo("Goal reached! Distance: %.3f meters" % distance_to_goal)
+        
+        return self.succeed
+    
+    def _compute_directional_weights(self, relative_angles, max_weight=10.0):
+        power = 6
+        raw_weights = (numpy.cos(relative_angles))**power + 0.1
+        scaled_weights = raw_weights * (max_weight / numpy.max(raw_weights))
+        normalized_weights = scaled_weights / numpy.sum(scaled_weights)
+        return normalized_weights
+    
+    def _compute_obstacle_penalty(self, laser_ranges):
+        """
+        Compute weighted penalty based on obstacle proximity and direction.
+        Obstacles directly in front are penalized more heavily.
+        """
+        # Convert laser ranges to numpy array
+        ranges = numpy.array(laser_ranges)
+        
+        # Calculate angle for each laser reading
+        num_readings = len(ranges)
+        angles = numpy.linspace(-numpy.pi, numpy.pi, num_readings)
+        
+        # Only consider obstacles within danger zone (0.5m)
+        valid_mask = (ranges <= 0.5) & (ranges > 0)
+        if not numpy.any(valid_mask):
+            return 0.0  # No close obstacles
+        
+        # Filter to only dangerous obstacles
+        danger_ranges = ranges[valid_mask]
+        danger_angles = angles[valid_mask]
+        
+        # Normalize angles to [-pi, pi]
+        danger_angles = numpy.arctan2(numpy.sin(danger_angles), numpy.cos(danger_angles))
+        
+        # Calculate directional weights (front obstacles matter more)
+        weights = self._compute_directional_weights(danger_angles, max_weight=10.0)
+        
+        # Calculate distance-based penalty (closer = worse)
+        safe_distances = numpy.clip(danger_ranges - 0.2, 1e-2, 3.5)  # 0.2m safety margin
+        decay = numpy.exp(-3.0 * safe_distances)
+        
+        # Weighted combination
+        weighted_decay = numpy.dot(weights, decay)
+        penalty = -(1.0 + 4.0 * weighted_decay)
+        
+        return penalty
 
     def _compute_reward(self, observations, done):
         """
-        Compute reward based on curriculum stage and milestones.
+        Compute reward based on:
+        1. Progress toward goal (yaw alignment)
+        2. Obstacle avoidance (weighted by direction)
+        3. Terminal states (success/failure)
         """
+        # Calculate goal alignment reward
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        goal_angle = math.atan2(dy, dx) - self.robot_yaw
+        # Normalize angle to [-pi, pi]
+        goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
         
-        # Initialize breakdown for this step
-        step_reward_props = {
-            'base': 0.0,
-            'velocity': 0.0,
-            'distance_clearance': 0.0,
-            'step_milestone': 0.0,
-            'survival': 0.0,
-            'distance_traveled_milestone': 0.0
-        }
+        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi)
         
-        self.episode_steps += 1
+        # Calculate obstacle penalty (using raw laser data from observations)
+        obstacle_penalty = self._compute_obstacle_penalty(observations)
         
-        # Check if we survived (done checking happens in _is_done, so if done=True and not crashed)
-        # We need to distinguish crash vs survival
-        # If done is True, we check if we reached max steps
-        is_survival = (self.episode_steps >= self.current_max_steps)
+        # Combine rewards
+        reward = yaw_reward + obstacle_penalty
         
-        if not done:
-            # Base reward for action
-            if self.last_action == "FORWARDS":
-                step_reward_props['base'] = self.forwards_reward
-            else:
-                step_reward_props['base'] = self.turn_reward
-            
-            # Stage 0: Basic collision avoidance
-            if self.curriculum_stage == 0:
-                pass # Only base reward + milestones
-            
-            # Stage 1: Add velocity-based rewards
-            elif self.curriculum_stage == 1:
-                velocity_reward = self._compute_velocity_reward()
-                step_reward_props['velocity'] = (self.velocity_reward_weight * velocity_reward)
-            
-            # Stage 2: Add distance clearance rewards
-            elif self.curriculum_stage == 2:
-                velocity_reward = self._compute_velocity_reward()
-                distance_reward = self._compute_distance_reward(observations)
-                step_reward_props['velocity'] = (self.velocity_reward_weight * velocity_reward)
-                step_reward_props['distance_clearance'] = (self.distance_reward_weight * distance_reward)
+        # Terminal rewards override
+        if self.succeed:
+            reward = 100.0
+            rospy.loginfo("SUCCESS! Goal reached!")
+        elif self.fail:
+            reward = -50.0
+            rospy.logerr("FAILURE! Collision detected!")
 
-            # --- Step Milestones ---
-            if self.episode_steps == self.current_min_steps:
-                 rospy.logwarn(">>> REACHED MIN STEP THRESHOLD " + str(self.current_min_steps) + "! REWARD BONUS!")
-                 step_reward_props['step_milestone'] = self.step_milestone_reward
-
-            # --- Distance Travelled Milestones ---
-            odom = self.get_odom()
-            current_pos = odom.pose.pose.position
-            dx = current_pos.x - self.initial_position.x
-            dy = current_pos.y - self.initial_position.y
-            dist_from_start = numpy.sqrt(dx*dx + dy*dy)
-            
-            if dist_from_start > (self.max_distance_milestone_reached + self.distance_milestone_interval):
-                 rospy.logwarn(">>> REACHED DISTANCE MILESTONE " + str(dist_from_start) + "m!")
-                 step_reward_props['distance_traveled_milestone'] = self.distance_milestone_reward
-                 self.max_distance_milestone_reached += self.distance_milestone_interval # Advance milestone
-
-        else:
-            if is_survival:
-                rospy.logwarn(">>> SURVIVAL REWARD GRANTED!")
-                step_reward_props['survival'] = self.survival_reward
-            else:
-                # Crash
-                step_reward_props['base'] = -1*self.end_episode_points
-
-        # Sum up
-        reward = sum(step_reward_props.values())
-
-        rospy.logdebug("reward_details=" + str(step_reward_props))
-        self.reward_props = step_reward_props
-        
-        self.cumulated_reward += reward
-        self.cumulated_steps += 1
-
+        rospy.logdebug("yaw_reward=%.2f, obstacle_penalty=%.2f, total_reward=%.2f" % (yaw_reward, obstacle_penalty, reward))
         return reward
 
 
-    def _compute_velocity_reward(self):
-        """
-        Compute reward based on robot velocity.
-        Rewards forward movement and penalizes stopping or slow movement.
-        """
-        # Get current odometry
-        odom = self.get_odom()
-        current_pos = odom.pose.pose.position
-        
-        # Calculate velocity based on position change
-        if self.previous_position is not None:
-            dx = current_pos.x - self.previous_position.x
-            dy = current_pos.y - self.previous_position.y
-            distance_moved = numpy.sqrt(dx*dx + dy*dy)
-            # Approximate velocity (distance per step)
-            self.current_velocity = distance_moved
-        
-        self.previous_position = current_pos
-        
-        # Reward faster movement, penalize stopping
-        if self.current_velocity < self.min_velocity_threshold:
-            # Penalty for stopping or very slow movement (-5)
-            velocity_reward = -self.stopping_penalty
-        else:
-            # Reward proportional to velocity
-            velocity_reward = self.current_velocity * 15.0
-        
-        # Cap reward to prevent exploitation
-        velocity_reward = numpy.clip(velocity_reward, -10.0, 30.0)
-        
-        return velocity_reward
-    
-    def _compute_distance_reward(self, observations):
-        """
-        Compute reward based on distance from obstacles.
-        Rewards maintaining safe distance from walls while navigating.
-        """
-        # Convert observations to numpy array
-        distances = numpy.array(observations)
-        
-        # Calculate minimum distance to any obstacle
-        min_distance = numpy.min(distances)
-        
-        # Calculate average distance (general clearance)
-        avg_distance = numpy.mean(distances)
-        
-        # Reward for maintaining safe distance
-        if min_distance < self.safe_distance_threshold:
-            # Penalty for being too close (but not crashing)
-            distance_reward = -2.0 * (self.safe_distance_threshold - min_distance)
-        else:
-            # Reward for maintaining good clearance
-            distance_reward = 2.0 * min_distance + 1.5 * avg_distance
-        
-        # Cap the reward to prevent exploitation
-        distance_reward = numpy.clip(distance_reward, -10.0, 30.0)
-        
-        return distance_reward
-    
-    def update_curriculum_stage(self, new_stage, new_velocity_weight=None, new_distance_weight=None):
-        """
-        Update the curriculum learning stage.
-        Called from training script when performance threshold is met.
-        """
-        self.curriculum_stage = new_stage
-        
-        if new_velocity_weight is not None:
-            self.velocity_reward_weight = new_velocity_weight
-        
-        if new_distance_weight is not None:
-            self.distance_reward_weight = new_distance_weight
-            
-        # Update Step Thresholds
-        if self.curriculum_stage == 0:
-            self.current_min_steps = self.stage_0_min_steps
-            self.current_max_steps = self.stage_0_max_steps
-        elif self.curriculum_stage == 1:
-            self.current_min_steps = self.stage_1_min_steps
-            self.current_max_steps = self.stage_1_max_steps
-        elif self.curriculum_stage >= 2:
-            self.current_min_steps = self.stage_2_min_steps
-            self.current_max_steps = self.stage_2_max_steps
-        
-        rospy.logwarn("="*50)
-        rospy.logwarn("CURRICULUM STAGE UPDATED!")
-        rospy.logwarn("New Stage: " + str(self.curriculum_stage))
-        rospy.logwarn("Min Steps: " + str(self.current_min_steps))
-        rospy.logwarn("Max Steps: " + str(self.current_max_steps))
-        rospy.logwarn("Velocity Reward Weight: " + str(self.velocity_reward_weight))
-        rospy.logwarn("Distance Reward Weight: " + str(self.distance_reward_weight))
-        if self.curriculum_stage == 0:
-            rospy.logwarn("Focus: Basic collision avoidance + Survival 300-500")
-        elif self.curriculum_stage == 1:
-            rospy.logwarn("Focus: Fast continuous movement + Survival 500-700")
-        elif self.curriculum_stage == 2:
-            rospy.logwarn("Focus: Maximize distance from obstacles + Survival 700-1000")
-        rospy.logwarn("="*50)
-
     # Internal TaskEnv Methods
+    
+    def _update_robot_position(self):
+        """
+        Update current robot position from odometry data
+        """
+        odom = self.get_odom()
+        self.robot_x = odom.pose.pose.position.x
+        self.robot_y = odom.pose.pose.position.y
+        
+        # Extract yaw from quaternion
+        orientation_q = odom.pose.pose.orientation
+        siny_cosp = 2 * (orientation_q.w * orientation_q.z + orientation_q.x * orientation_q.y)
+        cosy_cosp = 1 - 2 * (orientation_q.y * orientation_q.y + orientation_q.z * orientation_q.z)
+        self.robot_yaw = math.atan2(siny_cosp, cosy_cosp)
 
     def discretize_scan_observation(self,data,new_ranges):
         """
@@ -440,11 +345,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         discretized_ranges = []
         mod = len(data.ranges)/new_ranges
-
-        rospy.logdebug("data=" + str(data))
-        rospy.logdebug("new_ranges=" + str(new_ranges))
-        rospy.logdebug("mod=" + str(mod))
-
+        
         for i, item in enumerate(data.ranges):
             if (i%mod==0):
                 if item == float ('Inf') or numpy.isinf(item):
@@ -455,7 +356,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                     discretized_ranges.append(int(item))
 
                 if (self.min_range > item > 0):
-                   # rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
+                    rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
                     self._episode_done = True
                 else:
                     rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
@@ -475,4 +376,3 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         force_magnitude = numpy.linalg.norm(contact_force_np)
 
         return force_magnitude
-

@@ -1,32 +1,44 @@
 turtlebot3: #namespace
-
     n_actions: 3 # We have 3 actions, Forwards,TurnLeft,TurnRight
-    n_observations: 24 # (not used) this values must be equal to 360/new_ranges 
+    n_observations: 24 # (not used) this values must be equal to 360/new_ranges
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.5 # Spwwed for ging fowards
-    linear_turn_speed: 0.05 # Lienare speed when turning
+    linear_forward_speed: 0.5 # Speed for going forwards
+    linear_turn_speed: 0.05 # Linear speed when turning
     angular_speed: 0.3 # Angular speed when turning Left or Right
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
-    init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode
-    
+    init_linear_turn_speed: 0.0 # Initial angular speed in which we start each episode
+
     new_ranges: 30 # How many laser readings we jump in each observation reading, the bigger the less laser resolution
-    min_range: 0.13 # Minimum meters below wich we consider we have crashed
+    min_range: 0.13 # Minimum meters below which we consider we have crashed
     max_laser_value: 6 # Value considered Ok, no wall
     min_laser_value: 0 # Value considered there is an obstacle or crashed
     max_linear_aceleration: 5.0 # Linear acceleration value in which we consider Turtlebot 3 has crashed into something
-    
-    forwards_reward: 10 # Points Given to go forwards
-    turn_reward: 1 # Points Given to turn as action
-    end_episode_points: 300 # Points given when ending an episode
-    
-    # Curriculum Learning Parameters
-    curriculum_stage: 0  # 0 = collision avoidance, 1 = fast movement, 2 = maximize distance
-    velocity_reward_weight: 0.0  # Weight for velocity-based rewards (0.0 for stage 0)
-    stopping_penalty: 5.0  # Penalty for stopping or very slow movement (used in stage 1+)
-    distance_reward_weight: 0.0  # Weight for distance-based rewards (0.0 for stages 0-1)
-    safe_distance_threshold: 1  # Meters - threshold for safe distance from obstacles
-    min_velocity_threshold: 0.05  # Minimum velocity threshold below which stopping penalty applies
-    
 
+    # Episode Management
+    max_episode_steps: 1000 # Maximum number of steps per episode before forced termination
+    
+    # Reward System (New weighted obstacle penalty format)
+    # Terminal rewards are hardcoded in _compute_reward():
+    #   - Success (goal reached): +100
+    #   - Failure (collision/timeout): -50
+    # Step rewards computed dynamically:
+    #   - Yaw alignment reward: 1.0 - (2.0 * |goal_angle| / pi)
+    #   - Obstacle penalty: weighted by direction and proximity (front obstacles penalized 10x more)
+    #   - Danger zone: 0.5m, Safety margin: 0.2m
+    
+    # DQN Training Parameters
+    gamma: 0.99 # Discount factor for future rewards
+    epsilon_start: 1.0 # Initial exploration rate
+    epsilon_end: 0.05 # Final exploration rate
+    epsilon_decay: 200000 # Decay rate for epsilon-greedy policy
+    n_episodes: 10000 # Total number of training episodes
+    batch_size: 128 # Number of transitions sampled from replay buffer
+    target_update: 10 # Frequency (in episodes) to update target network
+    learning_rate: 0.001 # Learning rate for RMSprop optimizer
+    running_step: 0.1 # Time step for simulation (not actively used)
+    
+    # Checkpoint Management
+    resume_from_checkpoint: false # Whether to resume training from a saved checkpoint
+    checkpoint_file: "best_model.pth" # Name of checkpoint file to load when resuming
