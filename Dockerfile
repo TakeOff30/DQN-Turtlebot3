@@ -50,6 +50,10 @@ WORKDIR /home/ubuntu/simulation_ws/src
 RUN python3 -m pip install gym==0.25.0
 RUN python3 -m pip install GitPython
 RUN python3 -m pip install torch
+RUN python3 -m pip install python3-pyqt5
+RUN python3 -m pip install python3-pyqtgraph
+RUN python3 -m pip install rclpy
+RUN python3 -m pip install std_msgs
 
 WORKDIR /home/ubuntu/simulation_ws
 # Initialize the workspace structure. You must run 'catkin build' manually after mounting volumes.
