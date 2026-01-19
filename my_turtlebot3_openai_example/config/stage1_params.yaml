@@ -28,6 +28,14 @@ turtlebot3:
     # Collision detection
     max_linear_aceleration: 1.5  # Relaxed for empty environment
     
+    # Arena boundaries (4x4 meter bounded box)
+    arena_min_x: -1.5
+    arena_max_x: 1.5
+    arena_min_y: -1.5
+    arena_max_y: 1.5
+    min_spawn_distance: 1.5  # Minimum distance between robot and goal spawn
+    success_threshold: 0.5   # Distance to consider goal reached (meters)
+    
     # DQN parameters - Faster exploration
     gamma: 0.99
     epsilon_start: 0.95

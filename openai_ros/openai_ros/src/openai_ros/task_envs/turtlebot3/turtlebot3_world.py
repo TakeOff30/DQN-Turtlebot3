@@ -3,10 +3,11 @@ import numpy
 from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
 from gym.envs.registration import register
-from geometry_msgs.msg import Vector3, Pose
+from geometry_msgs.msg import Vector3, Pose, Quaternion
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
-from gazebo_msgs.srv import SpawnModel, DeleteModel
+from gazebo_msgs.srv import SpawnModel, DeleteModel, SetModelState
+from gazebo_msgs.msg import ModelState
 import os
 import random
 import math
@@ -75,9 +76,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         self.max_episode_steps = rospy.get_param('/turtlebot3/max_episode_steps')
         
-        # Goal position - randomized each episode
-        self.goal_x = random.uniform(-2.0, 2.0)
-        self.goal_y = random.uniform(-2.0, 2.0)
+        # Arena boundaries for random spawning
+        self.arena_min_x = rospy.get_param('/turtlebot3/arena_min_x', -1.5)
+        self.arena_max_x = rospy.get_param('/turtlebot3/arena_max_x', 1.5)
+        self.arena_min_y = rospy.get_param('/turtlebot3/arena_min_y', -1.5)
+        self.arena_max_y = rospy.get_param('/turtlebot3/arena_max_y', 1.5)
+        self.min_spawn_distance = rospy.get_param('/turtlebot3/min_spawn_distance', 1.5)
+        self.success_threshold = rospy.get_param('/turtlebot3/success_threshold', 0.5)
+        
+        # Goal position - will be randomized in _init_env_variables
+        self.goal_x = 0.0
+        self.goal_y = 0.0
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
@@ -100,72 +109,39 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.robot_yaw = 0.0
         self.previous_distance_to_goal = None
         
-        # Wait for Gazebo services to spawn goal marker
-        rospy.loginfo("Waiting for Gazebo model services...")
-        rospy.wait_for_service('/gazebo/spawn_sdf_model')
-        rospy.wait_for_service('/gazebo/delete_model')
-        self.spawn_model_srv = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
-        self.delete_model_srv = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
-        rospy.loginfo("Gazebo services ready")
+        # Wait for Gazebo service to move goal marker
+        rospy.loginfo("Waiting for Gazebo set_model_state service...")
+        rospy.wait_for_service('/gazebo/set_model_state')
+        self.set_model_state_srv = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+        rospy.loginfo("Gazebo service ready")
         
-        # Spawn initial goal marker
-        self._spawn_goal_marker()
+        # Move goal marker to initial random position
+        self._move_goal_marker()
 
-    def _spawn_goal_marker(self):
-        """Spawn or update goal marker in Gazebo as an actual model"""
-        # Delete old marker if it exists
+    def _move_goal_marker(self):
+        """Move the existing goal marker to a new position using SetModelState"""
         try:
-            self.delete_model_srv('goal_marker')
-            rospy.sleep(0.1)
-        except:
-            pass  # Model didn't exist yet
-        
-        # SDF model definition for a green cylinder
-        goal_sdf = """<?xml version='1.0'?>
-        <sdf version='1.6'>
-          <model name='goal_marker'>
-            <static>true</static>
-            <link name='link'>
-              <visual name='visual'>
-                <geometry>
-                  <cylinder>
-                    <radius>0.25</radius>
-                    <length>0.2</length>
-                  </cylinder>
-                </geometry>
-                <material>
-                  <ambient>0 1 0 0.8</ambient>
-                  <diffuse>0 1 0 0.8</diffuse>
-                  <specular>0 1 0 1</specular>
-                  <emissive>0 0.5 0 1</emissive>
-                </material>
-              </visual>
-            </link>
-          </model>
-        </sdf>"""
-        
-        # Set pose for the goal marker
-        goal_pose = Pose()
-        goal_pose.position.x = self.goal_x
-        goal_pose.position.y = self.goal_y
-        goal_pose.position.z = 0.1
-        goal_pose.orientation.w = 1.0
-        
-        # Spawn the model in Gazebo
-        try:
-            self.spawn_model_srv('goal_marker', goal_sdf, '', goal_pose, 'world')
-            rospy.loginfo("Goal marker spawned in Gazebo at (%.2f, %.2f)" % (self.goal_x, self.goal_y))
-        except Exception as e:
-            rospy.logerr("Failed to spawn goal marker: %s" % str(e))
+            # Create model state message
+            model_state = ModelState()
+            model_state.model_name = 'goal_marker'
+            model_state.pose.position.x = self.goal_x
+            model_state.pose.position.y = self.goal_y
+            model_state.pose.position.z = 0.1
+            model_state.pose.orientation.w = 1.0
+            
+            # Move the marker
+            self.set_model_state_srv(model_state)
+            rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
+        except rospy.ServiceException as e:
+            rospy.logerr("Failed to move goal marker: %s" % str(e))
 
 
     def _set_init_pose(self):
-        """Sets the Robot in its init pose
-        """
-        self.move_base( self.init_linear_forward_speed,
-                        self.init_linear_turn_speed,
-                        epsilon=0.05,
-                        update_rate=10)
+        """Sets the Robot in its init pose"""
+        self.move_base(self.init_linear_forward_speed,
+                       self.init_linear_turn_speed,
+                       epsilon=0.05,
+                       update_rate=10)
 
         return True
 
@@ -173,31 +149,43 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def _init_env_variables(self):
         """
         Inits variables needed to be initialised each time we reset at the start
-        of an episode.
+        of an episode. Generates random goal position within arena bounds.
         :return:
         """
-        
-        # Randomize new goal position for this episode
-        self.goal_x = random.uniform(-4.0, 4.0)
-        self.goal_y = random.uniform(-4.0, 4.0)
+        # Reset episode tracking
+        self.succeed = False
+        self.fail = False
+        self.current_episode_step = 0
         
         # Update robot position from odometry
         self._update_robot_position()
         
+        # Generate random goal position within arena, ensuring minimum distance from robot
+        attempts = 0
+        max_attempts = 100
+        while attempts < max_attempts:
+            self.goal_x = random.uniform(self.arena_min_x, self.arena_max_x)
+            self.goal_y = random.uniform(self.arena_min_y, self.arena_max_y)
+            
+            # Check distance from current robot position
+            dx = self.goal_x - self.robot_x
+            dy = self.goal_y - self.robot_y
+            distance_to_robot = math.sqrt(dx**2 + dy**2)
+            
+            if distance_to_robot >= self.min_spawn_distance:
+                break  # Valid goal position found
+            
+            attempts += 1
+        
+        if attempts >= max_attempts:
+            rospy.logwarn("Could not find valid goal position, using last attempt")
+        
         # Calculate initial distance to goal
-        dx = self.goal_x - self.robot_x
-        dy = self.goal_y - self.robot_y
-        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+        self.previous_distance_to_goal = distance_to_robot
         
-        self.succeed = False
-        self.fail = False
-        
-        # Reset episode step counter
-        self.current_episode_step = 0
-        
-        # Spawn the new goal marker in Gazebo
-        self._spawn_goal_marker()
-        rospy.loginfo("New goal set at: (%.2f, %.2f), initial distance: %.2f" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
+        # Move the goal marker to new position in Gazebo
+        self._move_goal_marker()
+        rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
 
 
     def _set_action(self, action):
@@ -321,7 +309,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         dy = self.goal_y - self.robot_y
         distance_to_goal = math.sqrt(dx**2 + dy**2)
         
-        if distance_to_goal < 0.2:
+        if distance_to_goal < self.success_threshold:
             self.succeed = True
             rospy.loginfo("Goal reached! Distance: %.3f meters" % distance_to_goal)
         

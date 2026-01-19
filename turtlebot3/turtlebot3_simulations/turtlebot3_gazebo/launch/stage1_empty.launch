@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- Stage 1: Empty environment - Basic goal navigation -->
+  <!-- Stage 1: Bounded arena - Basic goal navigation with random spawning -->
   
   <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
   <arg name="x_pos" default="0.0"/>
   <arg name="y_pos" default="0.0"/>
   <arg name="z_pos" default="0.0"/>
 
-  <!-- Launch Gazebo with empty world -->
+  <!-- Launch Gazebo with bounded arena world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/stage1_empty.world"/>
+    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/stage1_bounded_arena.world"/>
     <arg name="paused" value="false"/>
     <arg name="use_sim_time" value="true"/>
     <arg name="gui" value="true"/>
