@@ -231,11 +231,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("END Set Action ==>"+str(action))
 
     def _get_obs(self):
+
         """
         Here we define what sensor data defines our robots observations
         To know which Variables we have acces to, we need to read the
         TurtleBot2Env API DOCS
-        :return:
+        
         """
         rospy.logdebug("Start Get Observation ==>")
         
@@ -248,12 +249,24 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         discretized_observations = self.discretize_scan_observation(    laser_scan,
                                                                         self.new_ranges
                                                                         )
+        
+        # Calculate goal information
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        distance_to_goal = math.sqrt(dx**2 + dy**2)
+        
+        # Angle to goal relative to robot's heading
+        goal_angle = math.atan2(dy, dx) - self.robot_yaw
+        goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))  # Normalize to [-pi, pi]
+        
+        # Combine observations: [laser1, laser2, laser3, laser4, laser5, distance, angle]
+        full_observations = discretized_observations + [distance_to_goal, goal_angle]
 
-        rospy.logdebug("Observations==>"+str(discretized_observations))
-        rospy.logdebug("Robot position: (%.2f, %.2f, %.2f), Goal: (%.2f, %.2f)" % 
-                      (self.robot_x, self.robot_y, self.robot_yaw, self.goal_x, self.goal_y))
+        rospy.logdebug("Observations==>"+str(full_observations))
+        rospy.logdebug("Robot position: (%.2f, %.2f, %.2f), Goal: (%.2f, %.2f), Distance: %.2f, Angle: %.2f" % 
+                      (self.robot_x, self.robot_y, self.robot_yaw, self.goal_x, self.goal_y, distance_to_goal, goal_angle))
         rospy.logdebug("END Get Observation ==>")
-        return discretized_observations
+        return full_observations
     
     def _is_done(self, observations):
         

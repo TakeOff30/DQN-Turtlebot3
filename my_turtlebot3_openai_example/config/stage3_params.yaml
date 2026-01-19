@@ -19,7 +19,6 @@ turtlebot3:
     init_linear_turn_speed: 0.0
     
     # Observations
-    n_observations: 5
     new_ranges: 5
     min_range: 0.15
     max_laser_value: 3.5
