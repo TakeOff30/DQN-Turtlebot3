@@ -1,0 +1,45 @@
+turtlebot3:
+    # Stage 3: Moving obstacles - Master dynamic environments
+    
+    task_and_robot_environment_name: 'TurtleBot3World-v0'
+    ros_ws_abspath: "/home/ubuntu/simulation_ws"
+    launch_file_name: "stage3_moving_obstacles.launch"  # Stage 3 world
+    stage: 3
+    
+    # Environment parameters
+    running_step: 0.04
+    pos_step: 0.016
+    max_episode_steps: 500  # Longest episodes for complex navigation
+    
+    # Robot control
+    linear_forward_speed: 0.20  # Slightly slower for safety
+    linear_turn_speed: 0.1
+    angular_speed: 1.5
+    init_linear_forward_speed: 0.0
+    init_linear_turn_speed: 0.0
+    
+    # Observations
+    n_observations: 5
+    new_ranges: 5
+    min_range: 0.15
+    max_laser_value: 3.5
+    min_laser_value: 0.0
+    n_actions: 3
+    
+    # Collision detection
+    max_linear_aceleration: 1.0  # Most sensitive
+    
+    # DQN parameters - Fine-tuning for dynamic obstacles
+    gamma: 0.999  # Higher discount for long-term planning
+    epsilon_start: 0.5  # Balanced exploration/exploitation
+    epsilon_end: 0.05
+    epsilon_decay: 2500
+    n_episodes: 2000
+    target_update: 10
+    batch_size: 128
+    learning_rate: 0.0003  # Lowest learning rate for stability
+    
+    # Checkpoint - Load from stage 2
+    resume_from_checkpoint: true
+    checkpoint_file: "stage2_best_model.pth"  # Load best model from stage 2
+    save_checkpoint_freq: 50

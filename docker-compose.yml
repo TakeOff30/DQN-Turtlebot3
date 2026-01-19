@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ros_rl_dev
-    container_name: ros_training
+    container_name: final_project
     tty: true
     stdin_open: true
     environment:

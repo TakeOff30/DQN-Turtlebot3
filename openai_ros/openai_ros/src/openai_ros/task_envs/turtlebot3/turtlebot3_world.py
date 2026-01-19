@@ -3,13 +3,13 @@ import numpy
 from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
 from gym.envs.registration import register
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Vector3, Pose
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
+from gazebo_msgs.srv import SpawnModel, DeleteModel
 import os
 import random
 import math
-from visualization_msgs.msg import Marker
 
 
 class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
@@ -27,7 +27,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                                                "/src;cd " + ros_ws_abspath + ";catkin_make"
 
         ROSLauncher(rospackage_name="turtlebot3_gazebo",
-                    launch_file_name="start_world.launch",
+                    launch_file_name=rospy.get_param('/turtlebot3/launch_file_name', 'start_world.launch'),
                     ros_ws_abspath=ros_ws_abspath)
 
         # Load Params from the desired Yaml file
@@ -76,8 +76,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.max_episode_steps = rospy.get_param('/turtlebot3/max_episode_steps')
         
         # Goal position - randomized each episode
-        self.goal_x = random.uniform(-4.0, 4.0)
-        self.goal_y = random.uniform(-4.0, 4.0)
+        self.goal_x = random.uniform(-2.0, 2.0)
+        self.goal_y = random.uniform(-2.0, 2.0)
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
@@ -94,26 +94,69 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.cumulated_steps = 0.0
         
+        # Initialize robot position tracking
+        self.robot_x = 0.0
+        self.robot_y = 0.0
+        self.robot_yaw = 0.0
+        self.previous_distance_to_goal = None
         
+        # Wait for Gazebo services to spawn goal marker
+        rospy.loginfo("Waiting for Gazebo model services...")
+        rospy.wait_for_service('/gazebo/spawn_sdf_model')
+        rospy.wait_for_service('/gazebo/delete_model')
+        self.spawn_model_srv = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
+        self.delete_model_srv = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
+        rospy.loginfo("Gazebo services ready")
+        
+        # Spawn initial goal marker
+        self._spawn_goal_marker()
 
-    def _publish_goal_marker(self):
-        """Publish visual marker for goal in RViz/Gazebo"""
-        marker = Marker()
-        marker.header.frame_id = "odom"
-        marker.type = Marker.CYLINDER
-        marker.action = Marker.ADD
-        marker.pose.position.x = self.goal_x
-        marker.pose.position.y = self.goal_y
-        marker.pose.position.z = 0.1
-        marker.scale.x = 0.5
-        marker.scale.y = 0.5
-        marker.scale.z = 0.2
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-        marker.color.a = 0.8
+    def _spawn_goal_marker(self):
+        """Spawn or update goal marker in Gazebo as an actual model"""
+        # Delete old marker if it exists
+        try:
+            self.delete_model_srv('goal_marker')
+            rospy.sleep(0.1)
+        except:
+            pass  # Model didn't exist yet
         
-        self.goal_marker_pub.publish(marker)
+        # SDF model definition for a green cylinder
+        goal_sdf = """<?xml version='1.0'?>
+        <sdf version='1.6'>
+          <model name='goal_marker'>
+            <static>true</static>
+            <link name='link'>
+              <visual name='visual'>
+                <geometry>
+                  <cylinder>
+                    <radius>0.25</radius>
+                    <length>0.2</length>
+                  </cylinder>
+                </geometry>
+                <material>
+                  <ambient>0 1 0 0.8</ambient>
+                  <diffuse>0 1 0 0.8</diffuse>
+                  <specular>0 1 0 1</specular>
+                  <emissive>0 0.5 0 1</emissive>
+                </material>
+              </visual>
+            </link>
+          </model>
+        </sdf>"""
+        
+        # Set pose for the goal marker
+        goal_pose = Pose()
+        goal_pose.position.x = self.goal_x
+        goal_pose.position.y = self.goal_y
+        goal_pose.position.z = 0.1
+        goal_pose.orientation.w = 1.0
+        
+        # Spawn the model in Gazebo
+        try:
+            self.spawn_model_srv('goal_marker', goal_sdf, '', goal_pose, 'world')
+            rospy.loginfo("Goal marker spawned in Gazebo at (%.2f, %.2f)" % (self.goal_x, self.goal_y))
+        except Exception as e:
+            rospy.logerr("Failed to spawn goal marker: %s" % str(e))
 
 
     def _set_init_pose(self):
@@ -134,10 +177,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         :return:
         """
         
-        # Robot position tracking
-        self.robot_x = 0.0
-        self.robot_y = 0.0
-        self.robot_yaw = 0.0
+        # Randomize new goal position for this episode
+        self.goal_x = random.uniform(-4.0, 4.0)
+        self.goal_y = random.uniform(-4.0, 4.0)
+        
+        # Update robot position from odometry
+        self._update_robot_position()
+        
+        # Calculate initial distance to goal
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
         
         self.succeed = False
         self.fail = False
@@ -145,8 +195,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Reset episode step counter
         self.current_episode_step = 0
         
-        self.goal_marker_pub = rospy.Publisher('/goal_marker', Marker, queue_size=1)
-        self._publish_goal_marker()
+        # Spawn the new goal marker in Gazebo
+        self._spawn_goal_marker()
+        rospy.loginfo("New goal set at: (%.2f, %.2f), initial distance: %.2f" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
 
 
     def _set_action(self, action):
@@ -199,6 +250,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                                                                         )
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
+        rospy.logdebug("Robot position: (%.2f, %.2f, %.2f), Goal: (%.2f, %.2f)" % 
+                      (self.robot_x, self.robot_y, self.robot_yaw, self.goal_x, self.goal_y))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations
     
@@ -210,25 +263,44 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             return False
 
     def _is_failed(self, observations):
-            
+        """
+        Check if episode should fail due to:
+        1. High acceleration (crash impact)
+        2. Too close to obstacle (collision)
+        3. Maximum steps exceeded
+        """
+        # Check IMU for crash detection
         imu_data = self.get_imu()
         linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
         if linear_acceleration_magnitude > self.max_linear_aceleration:
-            rospy.logerr("TurtleBot2 Crashed==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
+            rospy.logerr("CRASH DETECTED! Acceleration: %.2f > %.2f" % (linear_acceleration_magnitude, self.max_linear_aceleration))
             self.fail = True
+            return True
 
         laser_scan = self.get_laser_scan()
-        laser_data = self.discretize_scan_observation(laser_scan, self.new_ranges)
-        min_laser_scan = min(laser_data)
-        if self.min_range > min_laser_scan > 0:
-            self.fail = True
         
-        # Check if maximum episode steps reached
+        # Filter out invalid readings (inf, nan, 0)
+        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0.0)]
+        
+        if len(valid_ranges) == 0:
+            rospy.logwarn("No valid laser readings!")
+            return False
+            
+        min_laser_value = min(valid_ranges)
+        
+        rospy.logdebug("Min laser distance: %.3f (collision threshold: %.3f)" % (min_laser_value, self.min_range))
+        
+        if min_laser_value < self.min_range:
+            rospy.logerr("COLLISION! Min laser distance: %.3f < %.3f" % (min_laser_value, self.min_range))
+            self.fail = True
+            return True
+        
         if self.current_episode_step >= self.max_episode_steps:
             rospy.logwarn("Max episode steps reached: %d" % self.current_episode_step)
             self.fail = True
+            return True
 
-        return self.fail
+        return False
     
     def _is_succeded(self, observations):
         """Check if robot has reached the goal"""
@@ -310,10 +382,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         # Terminal rewards override
         if self.succeed:
-            reward = 100.0
+            reward = 200.0
             rospy.loginfo("SUCCESS! Goal reached!")
         elif self.fail:
-            reward = -50.0
+            reward = -100.0
             rospy.logerr("FAILURE! Collision detected!")
 
         rospy.logdebug("yaw_reward=%.2f, obstacle_penalty=%.2f, total_reward=%.2f" % (yaw_reward, obstacle_penalty, reward))
