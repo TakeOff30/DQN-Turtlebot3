@@ -119,25 +119,58 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self._move_goal_marker()
 
     def _move_goal_marker(self):
-        """Move the existing goal marker to a new position using SetModelState"""
+        """
+        Move the existing goal marker to a new position using SetModelState.
+        Note: Simulation must be UNPAUSED for this to work reliably.
+        """
         try:
-            # Create model state message
+            # Wait a moment to ensure Gazebo is ready
+            rospy.sleep(0.05)
+            
+            # Create model state message with full state
             model_state = ModelState()
             model_state.model_name = 'goal_marker'
+            model_state.reference_frame = 'world'
+            
+            # Position
             model_state.pose.position.x = self.goal_x
             model_state.pose.position.y = self.goal_y
             model_state.pose.position.z = 0.1
+            
+            # Orientation (no rotation)
+            model_state.pose.orientation.x = 0.0
+            model_state.pose.orientation.y = 0.0
+            model_state.pose.orientation.z = 0.0
             model_state.pose.orientation.w = 1.0
             
-            # Move the marker
+            # Zero velocity (static marker)
+            model_state.twist.linear.x = 0.0
+            model_state.twist.linear.y = 0.0
+            model_state.twist.linear.z = 0.0
+            model_state.twist.angular.x = 0.0
+            model_state.twist.angular.y = 0.0
+            model_state.twist.angular.z = 0.0
+            
+            # Move the marker (this service call is synchronous)
             self.set_model_state_srv(model_state)
+            
+            # Brief pause to ensure state propagates
+            rospy.sleep(0.05)
+            
             rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
+            return True
+            
         except rospy.ServiceException as e:
             rospy.logerr("Failed to move goal marker: %s" % str(e))
+            return False
 
 
     def _set_init_pose(self):
-        """Sets the Robot in its init pose"""
+        """
+        Sets the Robot in its initial pose.
+        Called during _reset_sim() while simulation is UNPAUSED.
+        """
+        # Reset robot velocity to zero
         self.move_base(self.init_linear_forward_speed,
                        self.init_linear_turn_speed,
                        epsilon=0.05,
@@ -183,8 +216,13 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Calculate initial distance to goal
         self.previous_distance_to_goal = distance_to_robot
         
-        # Move the goal marker to new position in Gazebo
+        # Move the goal marker to new position - unpause sim first for reliability
+        self.gazebo.unpauseSim()
+        rospy.sleep(0.1)  # Allow physics to stabilize
         self._move_goal_marker()
+        rospy.sleep(0.1)  # Allow marker movement to propagate
+        self.gazebo.pauseSim()
+        
         rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
 
 

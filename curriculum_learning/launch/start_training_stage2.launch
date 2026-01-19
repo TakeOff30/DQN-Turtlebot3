@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Stage 2: Static obstacles training -->
+    
+    <!-- Load stage-specific parameters -->
+    <rosparam command="load" file="$(find curriculum_learning)/config/stage2_params.yaml" />
+    
+    <!-- Start training script -->
+    <node pkg="curriculum_learning" type="start_deepqlearning.py" name="turtlebot3_stage2_training" output="screen"/>
+</launch>

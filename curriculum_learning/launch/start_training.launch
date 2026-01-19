@@ -1,0 +1,6 @@
+<launch>
+    <!-- This version uses the openai_ros environments -->
+    <rosparam command="load" file="$(find curriculum_learning)/config/my_turtlebot3_openai_deepqlearn_params.yaml" />
+    <!-- Launch the training system -->
+    <node pkg="curriculum_learning" name="turtlebot3_world" type="start_deepqlearning.py" output="screen"/>
+</launch>
