@@ -169,6 +169,18 @@ if __name__ == '__main__':
 
     running_step = rospy.get_param("/turtlebot3/running_step")
     
+    # Log loaded hyperparameters for verification
+    rospy.loginfo("=== DQN Hyperparameters Loaded ===")
+    rospy.loginfo("Gamma: %.3f" % gamma)
+    rospy.loginfo("Epsilon Start: %.3f" % epsilon_start)
+    rospy.loginfo("Epsilon End: %.3f" % epsilon_end)
+    rospy.loginfo("Epsilon Decay: %d" % epsilon_decay)
+    rospy.loginfo("Episodes: %d" % n_episodes)
+    rospy.loginfo("Batch Size: %d" % batch_size)
+    rospy.loginfo("Target Update: %d" % target_update)
+    rospy.loginfo("Learning Rate: %.5f" % lr)
+    rospy.loginfo("==================================")
+    
     # Create directories for outputs
     model_path = pkg_path + '/trained_models'
     reports_dir = pkg_path + '/training_reports'
@@ -230,6 +242,7 @@ if __name__ == '__main__':
     episode_durations_history = []
     episode_distances_history = []
     episode_epsilon_history = []
+    reward_breakdown_history = []  # Track reward components per episode
     
     # grid_explorer = GridExplorer(step_size=0.5)
 
@@ -242,6 +255,15 @@ if __name__ == '__main__':
         last_distance_check = 0.0
         previous_odom = None
         done = False
+        
+        # Track reward breakdown for this episode
+        episode_breakdown = {
+            'navigation': 0.0,
+            'collision': 0.0,
+            'success': 0.0,
+            'failure': 0.0,
+            'other': 0.0
+        }
 
         # Initialize the environment and get first state of the robot
         observation = env.reset()
@@ -253,8 +275,19 @@ if __name__ == '__main__':
             action, epsilon = select_action(state, epsilon_start, epsilon_end, epsilon_decay)
 
             observation, reward, done, info = env.step(action.item())
-            rospy.logdebug(f"=== observation: {observation}===")
-            rospy.logdebug(str(observation) + " " + str(reward))
+            rospy.logwarn(f"=== observation: {observation}===")
+            rospy.logwarn(str(observation) + " " + str(reward))
+            
+            # Categorize reward for breakdown tracking
+            if reward > 100:
+                episode_breakdown['success'] += reward
+            elif reward < -50:
+                episode_breakdown['failure'] += reward
+            elif reward < 0:
+                episode_breakdown['collision'] += reward
+            else:
+                episode_breakdown['navigation'] += reward
+            
             cumulated_reward += reward
             if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
@@ -274,7 +307,7 @@ if __name__ == '__main__':
                 # reward += exploration_bonus
                 # episode_breakdown['exploration'] += exploration_bonus
             except (AttributeError, TypeError, RuntimeError) as e:
-                rospy.logdebug(f"Odometry unavailable: {e}")
+                rospy.logwarn(f"Odometry unavailable: {e}")
                 pass
 
             # Check if likely stuck (e.g. not moving effectively)
@@ -283,6 +316,7 @@ if __name__ == '__main__':
                 if (episode_distance - last_distance_check) < 0.1:
                     logger.log_robot_stuck()
                     reward = -50
+                    episode_breakdown['failure'] += -50
                     cumulated_reward += reward
                     done = True
                 last_distance_check = episode_distance
@@ -294,23 +328,17 @@ if __name__ == '__main__':
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
 
-            # Perform one step of the optimization (on the policy network)
-            rospy.logdebug("# state we were=>" + str(state))
-            rospy.logdebug("# action that we took=>" + str(action))
-            rospy.logdebug("# reward that action gave=>" + str(reward))
-            rospy.logdebug("# episode cumulated_reward=>" + str(cumulated_reward))
-            rospy.logdebug("# State in which we will start next step=>" + str(next_state))
             optimize_model(batch_size, gamma)
             
             if done:
                 episode_durations.append(t + 1)
-                rospy.logdebug("DONE")
                 last_time_steps = numpy.append(last_time_steps, [int(t + 1)])
                 
                 # Track metrics
                 episode_rewards_history.append(cumulated_reward)
                 episode_durations_history.append(t + 1)
                 episode_distances_history.append(episode_distance)
+                reward_breakdown_history.append(episode_breakdown)
 
                 # Track current epsilon
                 current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
@@ -324,7 +352,6 @@ if __name__ == '__main__':
                 
                 break
             else:
-                rospy.logdebug("NOT DONE")
                 state = next_state
 
         # Update the target network, copying all weights and biases in DQN
@@ -345,12 +372,12 @@ if __name__ == '__main__':
             # Generate and save plot
             plot_filename = reporter.generate_plot(episode_rewards_history, episode_durations_history,
                                                    episode_distances_history, episode_epsilon_history,
-                                                   i_episode + 1)
+                                                   reward_breakdown_history, i_episode + 1)
             
             # Save checkpoint
             checkpoint_mgr.save_checkpoint(i_episode, policy_net, target_net, optimizer,
                                           cumulated_reward, steps_done, episode_rewards_history,
-                                          {}, episode_durations_history, episode_distances_history,
+                                          reward_breakdown_history, episode_durations_history, episode_distances_history,
                                           episode_epsilon_history)
             
             logger.log_checkpoint_saved(i_episode, plot_filename)
