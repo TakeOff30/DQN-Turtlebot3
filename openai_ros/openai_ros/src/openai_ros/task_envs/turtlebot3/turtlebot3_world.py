@@ -92,11 +92,21 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # In the discretization method.
         laser_scan = self.get_laser_scan()
         num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
-        high = numpy.full((num_laser_readings), self.max_laser_value)
-        low = numpy.full((num_laser_readings), self.min_laser_value)
+        
+        # Calculate max possible distance within arena
+        self.max_goal_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
+                                           (self.arena_max_y - self.arena_min_y)**2)
+        
+        # Observation space: [laser_readings..., distance_to_goal, angle_to_goal]
+        laser_high = numpy.full((num_laser_readings,), self.max_laser_value, dtype=numpy.float32)
+        laser_low = numpy.full((num_laser_readings,), self.min_laser_value, dtype=numpy.float32)
+        obs_high = numpy.concatenate([laser_high, 
+                                      numpy.array([self.max_goal_distance, math.pi], dtype=numpy.float32)])
+        obs_low = numpy.concatenate([laser_low, 
+                                     numpy.array([0.0, -math.pi], dtype=numpy.float32)])
 
-        # We only use two integers
-        self.observation_space = spaces.Box(low, high)
+        # Observation space includes goal coordinates
+        self.observation_space = spaces.Box(obs_low, obs_high, dtype=numpy.float32)
 
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
@@ -115,62 +125,27 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.set_model_state_srv = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         rospy.loginfo("Gazebo service ready")
         
-        # Move goal marker to initial random position
-        self._move_goal_marker()
 
     def _move_goal_marker(self):
-        """
-        Move the existing goal marker to a new position using SetModelState.
-        Note: Simulation must be UNPAUSED for this to work reliably.
-        """
+        """Move the existing goal marker to a new position using SetModelState"""
         try:
-            # Wait a moment to ensure Gazebo is ready
-            rospy.sleep(0.05)
-            
-            # Create model state message with full state
+            # Create model state message
             model_state = ModelState()
             model_state.model_name = 'goal_marker'
-            model_state.reference_frame = 'world'
-            
-            # Position
             model_state.pose.position.x = self.goal_x
             model_state.pose.position.y = self.goal_y
             model_state.pose.position.z = 0.1
-            
-            # Orientation (no rotation)
-            model_state.pose.orientation.x = 0.0
-            model_state.pose.orientation.y = 0.0
-            model_state.pose.orientation.z = 0.0
             model_state.pose.orientation.w = 1.0
             
-            # Zero velocity (static marker)
-            model_state.twist.linear.x = 0.0
-            model_state.twist.linear.y = 0.0
-            model_state.twist.linear.z = 0.0
-            model_state.twist.angular.x = 0.0
-            model_state.twist.angular.y = 0.0
-            model_state.twist.angular.z = 0.0
-            
-            # Move the marker (this service call is synchronous)
+            # Move the marker
             self.set_model_state_srv(model_state)
-            
-            # Brief pause to ensure state propagates
-            rospy.sleep(0.05)
-            
             rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
-            return True
-            
         except rospy.ServiceException as e:
             rospy.logerr("Failed to move goal marker: %s" % str(e))
-            return False
 
 
     def _set_init_pose(self):
-        """
-        Sets the Robot in its initial pose.
-        Called during _reset_sim() while simulation is UNPAUSED.
-        """
-        # Reset robot velocity to zero
+        """Sets the Robot in its init pose"""
         self.move_base(self.init_linear_forward_speed,
                        self.init_linear_turn_speed,
                        epsilon=0.05,
@@ -193,36 +168,29 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Update robot position from odometry
         self._update_robot_position()
         
-        # Generate random goal position within arena, ensuring minimum distance from robot
-        attempts = 0
-        max_attempts = 100
-        while attempts < max_attempts:
-            self.goal_x = random.uniform(self.arena_min_x, self.arena_max_x)
-            self.goal_y = random.uniform(self.arena_min_y, self.arena_max_y)
-            
-            # Check distance from current robot position
-            dx = self.goal_x - self.robot_x
-            dy = self.goal_y - self.robot_y
-            distance_to_robot = math.sqrt(dx**2 + dy**2)
-            
-            if distance_to_robot >= self.min_spawn_distance:
-                break  # Valid goal position found
-            
-            attempts += 1
+        # Generate random goal position outside robot's spawn radius
+        # Generate random angle and distance from robot
+        angle = random.uniform(0, 2 * math.pi)
+        # Ensure distance is between min_spawn_distance and maximum arena distance
+        max_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
+                                (self.arena_max_y - self.arena_min_y)**2)
+        distance = random.uniform(self.min_spawn_distance, max_distance)
         
-        if attempts >= max_attempts:
-            rospy.logwarn("Could not find valid goal position, using last attempt")
+        # Calculate goal position using polar coordinates
+        self.goal_x = self.robot_x + distance * math.cos(angle)
+        self.goal_y = self.robot_y + distance * math.sin(angle)
         
-        # Calculate initial distance to goal
-        self.previous_distance_to_goal = distance_to_robot
+        # Clamp to arena boundaries
+        self.goal_x = numpy.clip(self.goal_x, self.arena_min_x, self.arena_max_x)
+        self.goal_y = numpy.clip(self.goal_y, self.arena_min_y, self.arena_max_y)
         
-        # Move the goal marker to new position - unpause sim first for reliability
-        self.gazebo.unpauseSim()
-        rospy.sleep(0.1)  # Allow physics to stabilize
+        # Calculate actual distance to goal (after clamping)
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+        
+        # Move the goal marker to new position in Gazebo
         self._move_goal_marker()
-        rospy.sleep(0.1)  # Allow marker movement to propagate
-        self.gazebo.pauseSim()
-        
         rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
 
 
@@ -292,7 +260,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("Robot position: (%.2f, %.2f, %.2f), Goal: (%.2f, %.2f), Distance: %.2f, Angle: %.2f" % 
                       (self.robot_x, self.robot_y, self.robot_yaw, self.goal_x, self.goal_y, distance_to_goal, goal_angle))
         rospy.logdebug("END Get Observation ==>")
-        return full_observations
+        return numpy.array(full_observations, dtype=numpy.float32)
     
     def _is_done(self, observations):
         
@@ -346,6 +314,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         distance_to_goal = math.sqrt(dx**2 + dy**2)
+        rospy.logwarn("Robot position (%.2f, %.2f), Goal (%.2f, %.2f), Distance to goal: %.3f" % (self.robot_x, self.robot_y, self.goal_x, self.goal_y, distance_to_goal))
         
         if distance_to_goal < self.success_threshold:
             self.succeed = True
@@ -452,8 +421,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         Discards all the laser readings that are not multiple in index of new_ranges
         value.
         """
-        self._episode_done = False
-
         discretized_ranges = []
         mod = len(data.ranges)/new_ranges
         
@@ -464,14 +431,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 elif numpy.isnan(item):
                     discretized_ranges.append(self.min_laser_value)
                 else:
-                    discretized_ranges.append(int(item))
-
-                if (self.min_range > item > 0):
-                    rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                    self._episode_done = True
-                else:
-                    rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-
+                    discretized_ranges.append(float(item))
 
         return discretized_ranges
 

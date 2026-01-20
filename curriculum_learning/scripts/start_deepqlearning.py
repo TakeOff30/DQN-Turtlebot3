@@ -166,7 +166,6 @@ if __name__ == '__main__':
     batch_size = rospy.get_param("/turtlebot3/batch_size")
     target_update = rospy.get_param("/turtlebot3/target_update")
     lr = rospy.get_param("/turtlebot3/learning_rate", 0.001)
-
     running_step = rospy.get_param("/turtlebot3/running_step")
     
     # Log loaded hyperparameters for verification
@@ -219,7 +218,7 @@ if __name__ == '__main__':
         policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
         target_net.load_state_dict(checkpoint['target_net_state_dict'])
         
-    optimizer = optim.RMSprop(policy_net.parameters(), lr=lr)
+    optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     memory = ReplayMemory(10000)
     episode_durations = []
     steps_done = 0
@@ -230,8 +229,10 @@ if __name__ == '__main__':
     logger = TrainingLogger()
     reporter = TrainingReporter(reports_dir, model_path)
     
-    # Initialize ROS publisher for real-time metrics monitoring
+    # Initialize ROS publishers for real-time metrics monitoring and visualization
     metrics_pub = rospy.Publisher('/training_metrics', Float32MultiArray, queue_size=10)
+    result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)  # For result_graph.py
+    action_pub = rospy.Publisher('/get_action', Float32MultiArray, queue_size=10)  # For action_graph.py
     
     highest_reward = 0
     
@@ -244,8 +245,6 @@ if __name__ == '__main__':
     episode_epsilon_history = []
     reward_breakdown_history = []  # Track reward components per episode
     
-    # grid_explorer = GridExplorer(step_size=0.5)
-
     # Starts the main training loop: the one about the episodes to do
     for i_episode in range(start_episode, n_episodes):
         logger.log_episode_start(i_episode)
@@ -275,8 +274,7 @@ if __name__ == '__main__':
             action, epsilon = select_action(state, epsilon_start, epsilon_end, epsilon_decay)
 
             observation, reward, done, info = env.step(action.item())
-            rospy.logwarn(f"=== observation: {observation}===")
-            rospy.logwarn(str(observation) + " " + str(reward))
+            rospy.logwarn(f"=== CURRENT REWARD: {reward}===")
             
             # Categorize reward for breakdown tracking
             if reward > 100:
@@ -301,11 +299,6 @@ if __name__ == '__main__':
                     episode_distance += numpy.sqrt(dx*dx + dy*dy)
                 previous_odom = current_odom
 
-                # robot_x = current_odom.pose.pose.position.x
-                # robot_y = current_odom.pose.pose.position.y
-                # exploration_bonus = grid_explorer.get_reward(robot_x, robot_y)
-                # reward += exploration_bonus
-                # episode_breakdown['exploration'] += exploration_bonus
             except (AttributeError, TypeError, RuntimeError) as e:
                 rospy.logwarn(f"Odometry unavailable: {e}")
                 pass
@@ -327,6 +320,15 @@ if __name__ == '__main__':
 
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
+
+            # Calculate average max Q-value for visualization
+            with torch.no_grad():
+                avg_max_q = policy_net(state).max(0)[0].item()
+            
+            # Publish action and reward data for action_graph visualization
+            action_msg = Float32MultiArray()
+            action_msg.data = [float(action.item()), float(cumulated_reward), float(reward.item())]
+            action_pub.publish(action_msg)
 
             optimize_model(batch_size, gamma)
             
@@ -362,17 +364,36 @@ if __name__ == '__main__':
         current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
         logger.log_episode_end(i_episode, gamma, current_eps, cumulated_reward, episode_distance)
         
-        # Publish metrics for real-time monitoring
+        # Publish metrics for real-time monitoring and visualization
         metrics_msg = Float32MultiArray()
         metrics_msg.data = [float(i_episode), float(cumulated_reward), float(episode_distance)]
         metrics_pub.publish(metrics_msg)
         
+        # Publish episode results for result_graph visualization
+        # data[0]: Average max Q-value from last batch
+        # data[1]: Total episode reward
+        with torch.no_grad():
+            if len(memory) > 0:
+                # Calculate average max Q-value over recent experiences
+                recent_states = [memory.memory[i][0] for i in range(max(0, len(memory)-100), len(memory))]
+                if recent_states:
+                    state_batch = torch.stack(recent_states)
+                    avg_max_q = policy_net(state_batch).max(1)[0].mean().item()
+                else:
+                    avg_max_q = 0.0
+            else:
+                avg_max_q = 0.0
+        
+        result_msg = Float32MultiArray()
+        result_msg.data = [float(avg_max_q), float(cumulated_reward)]
+        result_pub.publish(result_msg)
+        
         # Save periodic checkpoints every 500 episodes
         if (i_episode + 1) % 500 == 0:
             # Generate and save plot
-            plot_filename = reporter.generate_plot(episode_rewards_history, episode_durations_history,
-                                                   episode_distances_history, episode_epsilon_history,
-                                                   reward_breakdown_history, i_episode + 1)
+            plot_filename = reporter.generate_plot(i_episode + 1, outdir, episode_rewards_history,
+                                                   episode_durations_history, episode_distances_history,
+                                                   episode_epsilon_history, reward_breakdown_history)
             
             # Save checkpoint
             checkpoint_mgr.save_checkpoint(i_episode, policy_net, target_net, optimizer,
@@ -396,9 +417,8 @@ if __name__ == '__main__':
     # Generate comprehensive training report
     report_path = reporter.generate_text_report(
         n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update,
-        final_training_time, highest_reward, last_time_steps, episode_rewards_history,
-        episode_durations_history, episode_distances_history, max_episode_duration,
-        max_distance_traveled, model_path
+        final_training_time, highest_reward, episode_rewards_history, episode_durations_history,
+        episode_distances_history, max_episode_duration, max_distance_traveled, last_time_steps
     )
     
     logger.log_training_complete(max_episode_duration, max_distance_traveled, final_model_path, report_path)

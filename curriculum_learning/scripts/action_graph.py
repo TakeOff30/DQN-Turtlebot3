@@ -50,26 +50,23 @@ class Ros1Subscriber:
     def get_array_callback(self, msg):
         data = list(msg.data)
 
+        # Reset all action bars
         self.qt_thread.signal_action0.emit(0)
         self.qt_thread.signal_action1.emit(0)
         self.qt_thread.signal_action2.emit(0)
-        self.qt_thread.signal_action3.emit(0)
-        self.qt_thread.signal_action4.emit(0)
 
+        # Highlight the action taken (0=FORWARD, 1=LEFT, 2=RIGHT)
         if data[0] == 0:
             self.qt_thread.signal_action0.emit(100)
         elif data[0] == 1:
             self.qt_thread.signal_action1.emit(100)
         elif data[0] == 2:
             self.qt_thread.signal_action2.emit(100)
-        elif data[0] == 3:
-            self.qt_thread.signal_action3.emit(100)
-        elif data[0] == 4:
-            self.qt_thread.signal_action4.emit(100)
 
-        if len(data) >= 2:
-            self.qt_thread.signal_total_reward.emit(str(round(data[-2], 2)))
-            self.qt_thread.signal_reward.emit(str(round(data[-1], 2)))
+        # Update reward displays
+        if len(data) >= 3:
+            self.qt_thread.signal_total_reward.emit(str(round(data[1], 2)))
+            self.qt_thread.signal_reward.emit(str(round(data[2], 2)))
 
 
 class Thread(QThread):
@@ -77,8 +74,6 @@ class Thread(QThread):
     signal_action0 = pyqtSignal(int)
     signal_action1 = pyqtSignal(int)
     signal_action2 = pyqtSignal(int)
-    signal_action3 = pyqtSignal(int)
-    signal_action4 = pyqtSignal(int)
     signal_total_reward = pyqtSignal(str)
     signal_reward = pyqtSignal(str)
 
@@ -95,7 +90,7 @@ class Form(QWidget):
     def __init__(self, qt_thread):
         super().__init__(flags=Qt.Widget)
         self.qt_thread = qt_thread
-        self.setWindowTitle('Action State')
+        self.setWindowTitle('Action State - TurtleBot3 DQN')
 
         layout = QGridLayout()
 
@@ -114,29 +109,19 @@ class Form(QWidget):
         self.pgsb3.setValue(0)
         self.pgsb3.setRange(0, 100)
 
-        self.pgsb4 = QProgressBar()
-        self.pgsb4.setOrientation(Qt.Vertical)
-        self.pgsb4.setValue(0)
-        self.pgsb4.setRange(0, 100)
-
-        self.pgsb5 = QProgressBar()
-        self.pgsb5.setOrientation(Qt.Vertical)
-        self.pgsb5.setValue(0)
-        self.pgsb5.setRange(0, 100)
-
         self.label_total_reward = QLabel('Total reward')
         self.edit_total_reward = QLineEdit('')
         self.edit_total_reward.setDisabled(True)
         self.edit_total_reward.setFixedWidth(100)
 
-        self.label_reward = QLabel('Reward')
+        self.label_reward = QLabel('Step reward')
         self.edit_reward = QLineEdit('')
         self.edit_reward.setDisabled(True)
         self.edit_reward.setFixedWidth(100)
 
-        self.label_left = QLabel('Left')
-        self.label_front = QLabel('Front')
-        self.label_right = QLabel('Right')
+        self.label_forward = QLabel('Forward')
+        self.label_left = QLabel('Turn Left')
+        self.label_right = QLabel('Turn Right')
 
         layout.addWidget(self.label_total_reward, 0, 0)
         layout.addWidget(self.edit_total_reward, 1, 0)
@@ -146,20 +131,16 @@ class Form(QWidget):
         layout.addWidget(self.pgsb1, 0, 4, 4, 1)
         layout.addWidget(self.pgsb2, 0, 5, 4, 1)
         layout.addWidget(self.pgsb3, 0, 6, 4, 1)
-        layout.addWidget(self.pgsb4, 0, 7, 4, 1)
-        layout.addWidget(self.pgsb5, 0, 8, 4, 1)
 
         layout.addWidget(self.label_left, 4, 4)
-        layout.addWidget(self.label_front, 4, 6)
-        layout.addWidget(self.label_right, 4, 8)
+        layout.addWidget(self.label_forward, 4, 5)
+        layout.addWidget(self.label_right, 4, 6)
 
         self.setLayout(layout)
 
         qt_thread.signal_action0.connect(self.pgsb1.setValue)
         qt_thread.signal_action1.connect(self.pgsb2.setValue)
         qt_thread.signal_action2.connect(self.pgsb3.setValue)
-        qt_thread.signal_action3.connect(self.pgsb4.setValue)
-        qt_thread.signal_action4.connect(self.pgsb5.setValue)
         qt_thread.signal_total_reward.connect(self.edit_total_reward.setText)
         qt_thread.signal_reward.connect(self.edit_reward.setText)
 
