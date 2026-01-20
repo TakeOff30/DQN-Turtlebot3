@@ -308,7 +308,7 @@ if __name__ == '__main__':
                     done = True
                 last_distance_check = episode_distance
                 
-            reward = torch.tensor([reward], device=device)
+            reward = torch.tensor([reward], device=device, dtype=torch.float32)
 
             next_state = torch.tensor(observation, device=device, dtype=torch.float)
 
