@@ -52,22 +52,22 @@
 
     <!-- BOUNDED ARENA: 4x4 meter box made of walls -->
     
-    <!-- Wall 1: North (y = 2) -->
+    <!-- Wall 1: North (y = 1.5) -->
     <model name="wall_north">
       <static>true</static>
-      <pose>0 2 0.5 0 0 0</pose>
+      <pose>0 1.5 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>4 0.2 1</size>
+              <size>3 0.2 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>4 0.2 1</size>
+              <size>3 0.2 1</size>
             </box>
           </geometry>
           <material>
@@ -78,22 +78,22 @@
       </link>
     </model>
 
-    <!-- Wall 2: South (y = -2) -->
+    <!-- Wall 2: South (y = -1.5) -->
     <model name="wall_south">
       <static>true</static>
-      <pose>0 -2 0.5 0 0 0</pose>
+      <pose>0 -1.5 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>4 0.2 1</size>
+              <size>3 0.2 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>4 0.2 1</size>
+              <size>3 0.2 1</size>
             </box>
           </geometry>
           <material>
@@ -104,22 +104,22 @@
       </link>
     </model>
 
-    <!-- Wall 3: East (x = 2) -->
+    <!-- Wall 3: East (x = 1.5) -->
     <model name="wall_east">
       <static>true</static>
-      <pose>2 0 0.5 0 0 0</pose>
+      <pose>1.5 0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.2 4 1</size>
+              <size>0.2 3 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.2 4 1</size>
+              <size>0.2 3 1</size>
             </box>
           </geometry>
           <material>
@@ -130,22 +130,22 @@
       </link>
     </model>
 
-    <!-- Wall 4: West (x = -2) -->
+    <!-- Wall 4: West (x = -1.5) -->
     <model name="wall_west">
       <static>true</static>
-      <pose>-2 0 0.5 0 0 0</pose>
+      <pose>-1.5 0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.2 4 1</size>
+              <size>0.2 3 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.2 4 1</size>
+              <size>0.2 3 1</size>
             </box>
           </geometry>
           <material>
@@ -156,16 +156,37 @@
       </link>
     </model>
 
-    <!-- Goal Marker: Static green cylinder that will be moved via SetModelState -->
+    <!-- Goal Marker: Dynamic green cylinder that will be moved via SetModelState -->
+    <!-- Non-collidable and invisible to robot sensors -->
     <model name="goal_marker">
-      <static>true</static>
+      <static>false</static>
       <pose>1.5 1.5 0.1 0 0 0</pose>
       <link name="link">
+        <gravity>false</gravity>
+        <kinematic>true</kinematic>
+        
+        <!-- Collision geometry - made passthrough for sensors -->
+        <collision name="collision">
+          <laser_retro>0</laser_retro>
+          <max_contacts>0</max_contacts>
+          <geometry>
+            <cylinder>
+              <radius>0.1</radius>
+              <length>0.1</length>
+            </cylinder>
+          </geometry>
+          <surface>
+            <contact>
+              <collide_without_contact>true</collide_without_contact>
+            </contact>
+          </surface>
+        </collision>
+        
         <visual name="visual">
           <geometry>
             <cylinder>
-              <radius>0.25</radius>
-              <length>0.2</length>
+              <radius>0.1</radius>
+              <length>0.1</length>
             </cylinder>
           </geometry>
           <material>

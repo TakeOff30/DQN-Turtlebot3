@@ -38,7 +38,7 @@ turtlebot3:
     batch_size: 128
     learning_rate: 0.0003  # Lowest learning rate for stability
     
-    # Checkpoint - Load from stage 2
-    resume_from_checkpoint: true
-    checkpoint_file: "stage2_best_model.pth"  # Load best model from stage 2
-    save_checkpoint_freq: 50
+    # Checkpoint and Mode Settings - Load from stage 2
+    load_pretrained_model: true  # Load model weights from stage 2
+    checkpoint_file: "checkpoint_latest.pth"  # Load from stage 2 or "checkpoint_ep1500.pth"
+    inference_mode: false  # Set to true for evaluation only (no training)

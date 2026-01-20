@@ -212,14 +212,8 @@ if __name__ == '__main__':
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
-    if resume_training and os.path.isfile(model_path):
-        rospy.logwarn("Loading checkpoint model: " + model_path)
-        checkpoint = torch.load(model_path)
-        policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-        target_net.load_state_dict(checkpoint['target_net_state_dict'])
-        
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
-    memory = ReplayMemory(10000)
+    memory = ReplayMemory(500000)
     episode_durations = []
     steps_done = 0
     start_episode = 0
@@ -388,12 +382,33 @@ if __name__ == '__main__':
         result_msg.data = [float(avg_max_q), float(cumulated_reward)]
         result_pub.publish(result_msg)
         
+        # Save best model when new highest reward is achieved
+        if cumulated_reward > highest_reward:
+            best_model_data = {
+                'episode': i_episode,
+                'policy_net_state_dict': policy_net.state_dict(),
+                'target_net_state_dict': target_net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'reward': cumulated_reward,
+                'steps_done': steps_done,
+            }
+            best_model_path = os.path.join(model_path, "checkpoint_best.pth")
+            torch.save(best_model_data, best_model_path)
+            rospy.loginfo(f"New best model saved! Reward: {cumulated_reward:.2f} at episode {i_episode}")
+        
         # Save periodic checkpoints every 500 episodes
         if (i_episode + 1) % 500 == 0:
+            # Convert reward breakdown from list-of-dicts to dict-of-lists for plotting
+            breakdown_dict = {}
+            if reward_breakdown_history:
+                # Initialize with keys from first episode
+                for key in reward_breakdown_history[0].keys():
+                    breakdown_dict[key] = [ep[key] for ep in reward_breakdown_history]
+            
             # Generate and save plot
             plot_filename = reporter.generate_plot(i_episode + 1, outdir, episode_rewards_history,
                                                    episode_durations_history, episode_distances_history,
-                                                   episode_epsilon_history, reward_breakdown_history)
+                                                   episode_epsilon_history, breakdown_dict)
             
             # Save checkpoint
             checkpoint_mgr.save_checkpoint(i_episode, policy_net, target_net, optimizer,

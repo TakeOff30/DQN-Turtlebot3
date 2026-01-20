@@ -81,6 +81,13 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.arena_max_x = rospy.get_param('/turtlebot3/arena_max_x', 1.5)
         self.arena_min_y = rospy.get_param('/turtlebot3/arena_min_y', -1.5)
         self.arena_max_y = rospy.get_param('/turtlebot3/arena_max_y', 1.5)
+        
+        # Safe boundaries for goal spawning (inside walls)
+        self.safe_arena_min_x = rospy.get_param('/turtlebot3/safe_arena_min_x', -1.3)
+        self.safe_arena_max_x = rospy.get_param('/turtlebot3/safe_arena_max_x', 1.3)
+        self.safe_arena_min_y = rospy.get_param('/turtlebot3/safe_arena_min_y', -1.3)
+        self.safe_arena_max_y = rospy.get_param('/turtlebot3/safe_arena_max_y', 1.3)
+        
         self.min_spawn_distance = rospy.get_param('/turtlebot3/min_spawn_distance', 1.5)
         self.success_threshold = rospy.get_param('/turtlebot3/success_threshold', 0.5)
         
@@ -88,8 +95,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.goal_x = 0.0
         self.goal_y = 0.0
 
-        # We create two arrays based on the binary values that will be assigned
-        # In the discretization method.
+        # # We create two arrays based on the binary values that will be assigned
+        # # In the discretization method.
         laser_scan = self.get_laser_scan()
         num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
         
@@ -168,21 +175,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Update robot position from odometry
         self._update_robot_position()
         
-        # Generate random goal position outside robot's spawn radius
-        # Generate random angle and distance from robot
-        angle = random.uniform(0, 2 * math.pi)
-        # Ensure distance is between min_spawn_distance and maximum arena distance
-        max_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
-                                (self.arena_max_y - self.arena_min_y)**2)
-        distance = random.uniform(self.min_spawn_distance, max_distance)
+        # Generate random goal position at fixed distance from robot (1 meter)
+        angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
+        distance = 1.0  # Fixed 1 meter distance in any direction
         
         # Calculate goal position using polar coordinates
         self.goal_x = self.robot_x + distance * math.cos(angle)
         self.goal_y = self.robot_y + distance * math.sin(angle)
         
-        # Clamp to arena boundaries
-        self.goal_x = numpy.clip(self.goal_x, self.arena_min_x, self.arena_max_x)
-        self.goal_y = numpy.clip(self.goal_y, self.arena_min_y, self.arena_max_y)
+        # Clamp to safe arena boundaries
+        self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
+        self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
         
         # Calculate actual distance to goal (after clamping)
         dx = self.goal_x - self.robot_x
@@ -225,41 +228,26 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("END Set Action ==>"+str(action))
 
     def _get_obs(self):
-
-        """
-        Here we define what sensor data defines our robots observations
-        To know which Variables we have acces to, we need to read the
-        TurtleBot2Env API DOCS
-        
-        """
         rospy.logdebug("Start Get Observation ==>")
         
-        # Update robot position
         self._update_robot_position()
-        
-        # We get the laser scan data
         laser_scan = self.get_laser_scan()
 
-        discretized_observations = self.discretize_scan_observation(    laser_scan,
-                                                                        self.new_ranges
-                                                                        )
+        # Get the simplified/reduced laser ranges
+        discretized_observations = self.discretize_scan_observation(laser_scan, self.new_ranges)
         
-        # Calculate goal information
+        # Calculate relative goal information
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         distance_to_goal = math.sqrt(dx**2 + dy**2)
         
-        # Angle to goal relative to robot's heading
+        # Calculate angle to goal relative to robot's heading (Normalized to [-pi, pi])
         goal_angle = math.atan2(dy, dx) - self.robot_yaw
-        goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))  # Normalize to [-pi, pi]
+        goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
         
-        # Combine observations: [laser1, laser2, laser3, laser4, laser5, distance, angle]
+        # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
         full_observations = discretized_observations + [distance_to_goal, goal_angle]
 
-        rospy.logdebug("Observations==>"+str(full_observations))
-        rospy.logdebug("Robot position: (%.2f, %.2f, %.2f), Goal: (%.2f, %.2f), Distance: %.2f, Angle: %.2f" % 
-                      (self.robot_x, self.robot_y, self.robot_yaw, self.goal_x, self.goal_y, distance_to_goal, goal_angle))
-        rospy.logdebug("END Get Observation ==>")
         return numpy.array(full_observations, dtype=numpy.float32)
     
     def _is_done(self, observations):
@@ -277,12 +265,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         3. Maximum steps exceeded
         """
         # Check IMU for crash detection
-        imu_data = self.get_imu()
-        linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
-        if linear_acceleration_magnitude > self.max_linear_aceleration:
-            rospy.logerr("CRASH DETECTED! Acceleration: %.2f > %.2f" % (linear_acceleration_magnitude, self.max_linear_aceleration))
-            self.fail = True
-            return True
+        # imu_data = self.get_imu()
+        # linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
+        # if linear_acceleration_magnitude > self.max_linear_aceleration:
+        #     rospy.logerr("CRASH DETECTED! Acceleration: %.2f > %.2f" % (linear_acceleration_magnitude, self.max_linear_aceleration))
+        #     self.fail = True
+        #     return True
 
         laser_scan = self.get_laser_scan()
         
@@ -331,72 +319,67 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
     def _compute_obstacle_penalty(self, laser_ranges):
         """
-        Compute weighted penalty based on obstacle proximity and direction.
-        Obstacles directly in front are penalized more heavily.
+        Takes ONLY the laser part of the observation.
+        Uses directional weights to penalize frontal obstacles more.
         """
-        # Convert laser ranges to numpy array
         ranges = numpy.array(laser_ranges)
-        
-        # Calculate angle for each laser reading
         num_readings = len(ranges)
+        
+        # Map each laser index to an angle from -pi to pi
         angles = numpy.linspace(-numpy.pi, numpy.pi, num_readings)
         
-        # Only consider obstacles within danger zone (0.5m)
+        # Only consider obstacles within danger zone (e.g., 0.5m)
+        # We ignore the last two elements (Distance and Angle) if they were accidentally passed
         valid_mask = (ranges <= 0.5) & (ranges > 0)
         if not numpy.any(valid_mask):
-            return 0.0  # No close obstacles
-        
-        # Filter to only dangerous obstacles
+            return 0.0 
+
         danger_ranges = ranges[valid_mask]
         danger_angles = angles[valid_mask]
         
-        # Normalize angles to [-pi, pi]
-        danger_angles = numpy.arctan2(numpy.sin(danger_angles), numpy.cos(danger_angles))
+        # Directional weights: Frontal obstacles (angle near 0) get higher weights
+        # cos^6 makes the penalty drop off sharply as objects move to the sides
+        weights = (numpy.cos(danger_angles))**6 + 0.1
         
-        # Calculate directional weights (front obstacles matter more)
-        weights = self._compute_directional_weights(danger_angles, max_weight=10.0)
-        
-        # Calculate distance-based penalty (closer = worse)
-        safe_distances = numpy.clip(danger_ranges - 0.2, 1e-2, 3.5)  # 0.2m safety margin
+        # Normalize weights so they don't explode the reward value
+        weights = weights / numpy.max(weights) 
+
+        # Calculate distance-based decay (closer = much higher penalty)
+        # 0.2m is the 'collision buffer'
+        safe_distances = numpy.clip(danger_ranges - 0.2, 0.01, 3.5)
         decay = numpy.exp(-3.0 * safe_distances)
         
-        # Weighted combination
+        # Final weighted penalty
         weighted_decay = numpy.dot(weights, decay)
-        penalty = -(1.0 + 4.0 * weighted_decay)
-        
-        return penalty
+        return -(1.0 + 4.0 * weighted_decay)
 
     def _compute_reward(self, observations, done):
-        """
-        Compute reward based on:
-        1. Progress toward goal (yaw alignment)
-        2. Obstacle avoidance (weighted by direction)
-        3. Terminal states (success/failure)
-        """
-        # Calculate goal alignment reward
-        dx = self.goal_x - self.robot_x
-        dy = self.goal_y - self.robot_y
-        goal_angle = math.atan2(dy, dx) - self.robot_yaw
-        # Normalize angle to [-pi, pi]
-        goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
-        
+        # 1. Extract pieces from the observation vector
+        # observations = [laser_0 ... laser_n, distance, angle]
+        laser_only = observations[:-2]
+        goal_distance = observations[-2]
+        goal_angle = observations[-1]
+
+        # 2. Alignment Reward (from Script 1)
+        # 1.0 if facing goal, -1.0 if facing away.
         yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi)
         
-        # Calculate obstacle penalty (using raw laser data from observations)
-        obstacle_penalty = self._compute_obstacle_penalty(observations)
+        # 3. Obstacle Penalty (using our new weighted function)
+        obstacle_penalty = self._compute_obstacle_penalty(laser_only)
         
-        # Combine rewards
+        # 4. Total step reward
         reward = yaw_reward + obstacle_penalty
         
-        # Terminal rewards override
+        # 5. Terminal Rewards (Overriding step rewards)
         if self.succeed:
             reward = 200.0
-            rospy.loginfo("SUCCESS! Goal reached!")
         elif self.fail:
-            reward = -100.0
-            rospy.logerr("FAILURE! Collision detected!")
-
-        rospy.logdebug("yaw_reward=%.2f, obstacle_penalty=%.2f, total_reward=%.2f" % (yaw_reward, obstacle_penalty, reward))
+            # Check if it was a collision or a timeout
+            if self.current_episode_step >= self.max_episode_steps:
+                reward = -20.0  # Mild penalty for timing out
+            else:
+                reward = -100.0 # Heavy penalty for crashing
+                
         return reward
 
 

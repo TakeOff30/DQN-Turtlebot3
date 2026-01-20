@@ -9,7 +9,7 @@ turtlebot3:
     # Environment parameters
     running_step: 0.02
     pos_step: 0.01
-    max_episode_steps: 300  # Shorter episodes for faster learning
+    max_episode_steps: 200  # Shorter episodes for faster learning
     
     # Robot control
     linear_forward_speed: 0.25
@@ -28,25 +28,32 @@ turtlebot3:
     # Collision detection
     max_linear_aceleration: 1.5  # Relaxed for empty environment
     
-    # Arena boundaries (4x4 meter bounded box)
+    # Arena boundaries (3x3 meter bounded box)
     arena_min_x: -1.5
     arena_max_x: 1.5
     arena_min_y: -1.5
     arena_max_y: 1.5
-    min_spawn_distance: 1.5  # Minimum distance between robot and goal spawn
-    success_threshold: 0.5   # Distance to consider goal reached (meters)
+    
+    # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
+    # Goals spawn within these boundaries to ensure they're accessible
+    safe_arena_min_x: -1.3
+    safe_arena_max_x: 1.3
+    safe_arena_min_y: -1.3
+    safe_arena_max_y: 1.3
+    min_spawn_distance: 1.0  # Minimum distance between robot and goal spawn
+    success_threshold: 0.25   # Distance to consider goal reached (meters)
     
     # DQN parameters - Faster exploration
     gamma: 0.99
-    epsilon_start: 0.95
+    epsilon_start: 1.0
     epsilon_end: 0.1
-    epsilon_decay: 1500
+    epsilon_decay: 6000
     n_episodes: 1000
-    target_update: 10
+    target_update: 5000
     batch_size: 128
-    learning_rate: 0.001
+    learning_rate: 0.0007
     
-    # Checkpoint
-    resume_from_checkpoint: false
-    checkpoint_file: "stage1_model.pth"
-    save_checkpoint_freq: 50  # Save every 50 episodes
+    # Checkpoint and Mode Settings
+    load_pretrained_model: false  # Load model weights from checkpoint (starts training from episode 0)
+    checkpoint_file: "checkpoint_latest.pth"  # File to load from trained_models directory
+    inference_mode: false  # Set to true for evaluation only (no training)

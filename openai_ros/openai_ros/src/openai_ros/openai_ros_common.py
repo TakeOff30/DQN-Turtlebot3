@@ -23,8 +23,13 @@ def StartOpenAI_ROS_Environment(task_and_robot_environment_name):
     """
     rospy.logwarn("Env: {} will be imported".format(
         task_and_robot_environment_name))
+    
+    # Load max_episode_steps from ROS parameter server
+    max_episode_steps = rospy.get_param('/turtlebot3/max_episode_steps', 10000)
+    rospy.loginfo(f"Using max_episode_steps: {max_episode_steps}")
+    
     result = RegisterOpenAI_Ros_Env(task_env=task_and_robot_environment_name,
-                                    max_episode_steps=10000)
+                                    max_episode_steps=max_episode_steps)
 
     if result:
         rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
