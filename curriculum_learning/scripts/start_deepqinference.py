@@ -126,8 +126,9 @@ if __name__ == '__main__':
         for t in count():
             # Select action greedily (no exploration)
             with torch.no_grad():
-                action = policy_net(state).max(0)[1].view(1, 1)
-            
+                state_batch = state.unsqueeze(0) if state.dim() == 1 else state
+                action = policy_net(state_batch).max(1)[1].view(1, 1)            
+           
             observation, reward, done, info = env.step(action.item())
             cumulated_reward += reward
             

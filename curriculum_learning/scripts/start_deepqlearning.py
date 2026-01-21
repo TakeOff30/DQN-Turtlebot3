@@ -46,24 +46,15 @@ class DQN(nn.Module):
 
     def __init__(self, inputs, outputs):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.head = nn.Linear(128, outputs)
-
-        self.apply(self._init_weights)
+        self.fc1 = nn.Linear(inputs, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.head = nn.Linear(64, outputs)
         
-    def _init_weights(self, module):
-        if isinstance(module, nn.Linear):
-            # Xavier/Glorot initialization, enhances Tanh/ReLu
-            nn.init.xavier_uniform_(module.weight)
-            if module.bias is not None:
-                module.bias.data.fill_(0.01)
                 
     def forward(self, x):
-        if not x.is_cuda and device.type == 'cuda':
-            x = x.to(device)
-            
+        x = x.to(device)
+
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
@@ -76,12 +67,15 @@ def select_action(state, eps_start, eps_end, eps_decay):
     eps_threshold = eps_end + (eps_start - eps_end) * \
         math.exp(-1. * steps_done / eps_decay)
     steps_done += 1
+    
     if sample > eps_threshold:
         with torch.no_grad():
             # t.max(1) will return largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
-            return policy_net(state).max(0)[1].view(1, 1), eps_threshold
+            if state.dim() == 1:
+                state = state.unsqueeze(0) 
+            return policy_net(state).max(1)[1].view(1, 1), eps_threshold
     else:
         return torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long), eps_threshold
 
@@ -97,26 +91,28 @@ def optimize_model(batch_size, gamma):
 
     # Compute a mask of non-final states and concatenate the batch elements
     # (a final state would've been the one after which simulation ended)
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)), device=device, dtype=torch.bool)
-    non_final_next_states = torch.stack([s for s in batch.next_state
-                                                if s is not None])
+    non_final_mask = torch.tensor(
+        tuple(s is not None for s in batch.next_state),
+        device=device, dtype=torch.bool
+    )
+     # Stack only non-final next states (if any)
+    non_final_next_states = None
+    if non_final_mask.any():
+        non_final_next_states = torch.stack(
+            [s for s in batch.next_state if s is not None]
+        )
     state_batch = torch.stack(batch.state)
     action_batch = torch.stack(batch.action)
     reward_batch = torch.stack(batch.reward)
 
-    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-    # columns of actions taken. These are the actions which would've been taken
-    # for each batch state according to policy_net
+    # Compute Q(s_t, a) - the model computes Q(s_t)
     state_action_values = policy_net(state_batch).gather(1, torch.squeeze(action_batch, 2))
 
     # Compute V(s_{t+1}) for all next states.
-    # Expected values of actions for non_final_next_states are computed based
-    # on the "older" target_net; selecting their best reward with max(1)[0].
-    # This is merged based on the mask, such that we'll have either the expected
-    # state value or 0 in case the state was final.
     next_state_values = torch.zeros(batch_size, device=device)
-    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+    
+    if non_final_next_states is not None:
+        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * gamma) + reward_batch
 
@@ -204,6 +200,9 @@ if __name__ == '__main__':
     # Get number of actions from gym action space
     n_actions = env.action_space.n
     initial_obs = env.reset()
+    assert env.observation_space.contains(initial_obs), \
+         f"Observation {initial_obs} outside declared space {env.observation_space}"
+    rospy.loginfo("✓ Observation space bounds match actual observations")
     n_observations = len(initial_obs)  # Dynamically get observation size
 
     # initialize networks with input and output sizes
@@ -213,16 +212,44 @@ if __name__ == '__main__':
     target_net.eval()
 
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
-    memory = ReplayMemory(500000)
+    memory = ReplayMemory(50000)
     episode_durations = []
     steps_done = 0
     start_episode = 0
+    total_training_steps = 0  # Track total steps across all episodes
+
     
     # Initialize helper classes
     checkpoint_mgr = CheckpointManager(model_path)
     logger = TrainingLogger()
     reporter = TrainingReporter(reports_dir, model_path)
     
+    # Warm-start replay memory before training
+    MIN_REPLAY_SIZE = batch_size * 10  # At least 10 batches worth
+    rospy.loginfo("=== Warming up replay memory ===")
+    rospy.loginfo(f"Target: {MIN_REPLAY_SIZE} experiences")
+    
+    warm_start_obs = env.reset()
+    warm_start_state = torch.tensor(warm_start_obs, device=device, dtype=torch.float)
+
+    while len(memory) < MIN_REPLAY_SIZE:
+        action = torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
+
+        observation, reward, done, _ = env.step(action.item())
+        reward_tensor = torch.tensor([reward], device=device, dtype=torch.float32)
+
+        if done:
+            next_state = None
+            memory.push(warm_start_state, action, next_state, reward_tensor)
+            warm_start_obs = env.reset()
+            warm_start_state = torch.tensor(warm_start_obs, device=device, dtype=torch.float)
+        else:
+            next_state = torch.tensor(observation, device=device, dtype=torch.float)
+            memory.push(warm_start_state, action, next_state, reward_tensor)
+            warm_start_state = next_state
+
+    rospy.loginfo(f"✓ Replay memory warmed up with {len(memory)} experiences")
+
     # Initialize ROS publishers for real-time metrics monitoring and visualization
     metrics_pub = rospy.Publisher('/training_metrics', Float32MultiArray, queue_size=10)
     result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)  # For result_graph.py
@@ -281,8 +308,6 @@ if __name__ == '__main__':
                 episode_breakdown['navigation'] += reward
             
             cumulated_reward += reward
-            if highest_reward < cumulated_reward:
-                highest_reward = cumulated_reward
             
             # Track distance traveled
             try:
@@ -300,9 +325,9 @@ if __name__ == '__main__':
             # Check if likely stuck (e.g. not moving effectively)
             if t > 0 and t % 15 == 0:
                 # Check if distance traveled in last 15 steps is significant (> 0.1m)
-                if (episode_distance - last_distance_check) < 0.1:
+                if (episode_distance - last_distance_check) < 0.05:
                     logger.log_robot_stuck()
-                    reward = -50
+                    reward = -20
                     episode_breakdown['failure'] += -50
                     cumulated_reward += reward
                     done = True
@@ -310,22 +335,30 @@ if __name__ == '__main__':
                 
             reward = torch.tensor([reward], device=device, dtype=torch.float32)
 
-            next_state = torch.tensor(observation, device=device, dtype=torch.float)
+            if done:
+                next_state = None
+            else:
+                next_state = torch.tensor(observation, device=device, dtype=torch.float)
 
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
 
             # Calculate average max Q-value for visualization
             with torch.no_grad():
-                avg_max_q = policy_net(state).max(0)[0].item()
-            
+                state_for_q = state.unsqueeze(0) if state.dim() == 1 else state
+                avg_max_q = policy_net(state_for_q).max(1)[0].item()           
             # Publish action and reward data for action_graph visualization
             action_msg = Float32MultiArray()
             action_msg.data = [float(action.item()), float(cumulated_reward), float(reward.item())]
             action_pub.publish(action_msg)
 
             optimize_model(batch_size, gamma)
+            total_training_steps += 1
             
+            if total_training_steps % target_update == 0:
+                target_net.load_state_dict(policy_net.state_dict())
+                rospy.loginfo(f"Target network updated at step {total_training_steps}")
+                
             if done:
                 episode_durations.append(t + 1)
                 last_time_steps = numpy.append(last_time_steps, [int(t + 1)])
@@ -350,9 +383,6 @@ if __name__ == '__main__':
             else:
                 state = next_state
 
-        # Update the target network, copying all weights and biases in DQN
-        if i_episode % target_update == 0:
-            target_net.load_state_dict(policy_net.state_dict())
 
         # Calculate current epsilon for logging
         current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
@@ -395,6 +425,10 @@ if __name__ == '__main__':
             best_model_path = os.path.join(model_path, "checkpoint_best.pth")
             torch.save(best_model_data, best_model_path)
             rospy.loginfo(f"New best model saved! Reward: {cumulated_reward:.2f} at episode {i_episode}")
+        
+        if highest_reward < cumulated_reward:
+                highest_reward = cumulated_reward
+            
         
         # Save periodic checkpoints every 500 episodes
         if (i_episode + 1) % 500 == 0:
