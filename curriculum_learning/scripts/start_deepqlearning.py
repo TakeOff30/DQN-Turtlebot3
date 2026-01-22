@@ -114,7 +114,7 @@ def optimize_model(batch_size, gamma):
     if non_final_next_states is not None:
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
     # Compute the expected Q values
-    expected_state_action_values = (next_state_values * gamma) + reward_batch
+    expected_state_action_values = (next_state_values.unsqueeze(1) * gamma) + reward_batch
 
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
@@ -190,8 +190,7 @@ if __name__ == '__main__':
     resume_training = rospy.get_param("/turtlebot3/resume_from_checkpoint", False)
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
 
-    # Initialises the algorithm that we are going to use for learning
-    # if gpu is to be used
+    # Initialises the algorithm that we are going to use for learning if gpu is to be used
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Transition = namedtuple('Transition',
@@ -216,8 +215,6 @@ if __name__ == '__main__':
     episode_durations = []
     steps_done = 0
     start_episode = 0
-    total_training_steps = 0  # Track total steps across all episodes
-
     
     # Initialize helper classes
     checkpoint_mgr = CheckpointManager(model_path)
@@ -346,18 +343,14 @@ if __name__ == '__main__':
             # Calculate average max Q-value for visualization
             with torch.no_grad():
                 state_for_q = state.unsqueeze(0) if state.dim() == 1 else state
-                avg_max_q = policy_net(state_for_q).max(1)[0].item()           
+                avg_max_q = policy_net(state_for_q).max(1)[0].item()    
+                       
             # Publish action and reward data for action_graph visualization
             action_msg = Float32MultiArray()
             action_msg.data = [float(action.item()), float(cumulated_reward), float(reward.item())]
             action_pub.publish(action_msg)
 
             optimize_model(batch_size, gamma)
-            total_training_steps += 1
-            
-            if total_training_steps % target_update == 0:
-                target_net.load_state_dict(policy_net.state_dict())
-                rospy.loginfo(f"Target network updated at step {total_training_steps}")
                 
             if done:
                 episode_durations.append(t + 1)
@@ -383,6 +376,9 @@ if __name__ == '__main__':
             else:
                 state = next_state
 
+        if (i_episode+1) % target_update == 0:
+                target_net.load_state_dict(policy_net.state_dict())
+                rospy.loginfo(f"Target network updated at episode: {i_episode+1}")
 
         # Calculate current epsilon for logging
         current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)

@@ -388,7 +388,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
          # Distance Progress Reward (primary signal)
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
-            distance_reward = distance_delta * 20.0  # Scale to make meaningful
+            distance_reward = distance_delta * 100.0  # Scale to make meaningful
         else:
             distance_reward = 0.0
         
@@ -397,21 +397,21 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward (from Script 1)
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) *0.2
+        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) * 0.1
         
         # 3. Obstacle Penalty (using our new weighted function)
         laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
         obstacle_penalty = self._compute_obstacle_penalty(laser_raw)
         
         # Living penalty to encourage faster completion
-        time_penalty = -0.25
+        time_penalty = -0.2
     
         # 4. Total step reward
         reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
         
         # 5. Terminal Rewards (Overriding step rewards)
         if self.succeed:
-            reward = 200.0
+            reward = 300.0
         elif self.fail:
             # Check if it was a collision or a timeout
             if self.current_episode_step >= self.max_episode_steps:

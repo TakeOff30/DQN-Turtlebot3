@@ -28,10 +28,10 @@ class DQN(nn.Module):
 
     def __init__(self, inputs, outputs):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.head = nn.Linear(128, outputs)
+        self.fc1 = nn.Linear(inputs, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.head = nn.Linear(64, outputs)
         
     def forward(self, x):
         if not x.is_cuda and device.type == 'cuda':

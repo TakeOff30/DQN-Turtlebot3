@@ -43,6 +43,7 @@ class Window(QMainWindow):
         self.ep = []
         self.data_list = []
         self.rewards = []
+        self.avg_rewards = []
         self.count = 1
 
         self.plot()
@@ -51,10 +52,23 @@ class Window(QMainWindow):
         self.ros_thread.start()
 
     def receive_data(self, msg):
+        
         self.data_list.append(msg.data[0])
         self.ep.append(self.count)
         self.count += 1
         self.rewards.append(msg.data[1])
+        
+        # --- CALCOLO MEDIA MOBILE (ultimi 20 episodi) ---
+        window_size = 20
+        if len(self.rewards) >= window_size:
+            # Media degli ultimi 20
+            avg = sum(self.rewards[-window_size:]) / window_size
+        else:
+            # Media cumulativa iniziale (se abbiamo meno di 20 dati)
+            avg = sum(self.rewards) / len(self.rewards)
+            
+        self.avg_rewards.append(avg)
+        # -----------------------------------------------
 
     def plot(self):
         self.qValuePlt = pyqtgraph.PlotWidget(self, title='Average max Q-value')
@@ -63,6 +77,7 @@ class Window(QMainWindow):
         self.rewardsPlt = pyqtgraph.PlotWidget(self, title='Total reward')
         self.rewardsPlt.setGeometry(0, 10, 600, 300)
 
+        
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(200)
@@ -73,8 +88,10 @@ class Window(QMainWindow):
         self.rewardsPlt.showGrid(x=True, y=True)
         self.qValuePlt.showGrid(x=True, y=True)
 
-        self.rewardsPlt.plot(self.ep, self.data_list, pen=(255, 0, 0), clear=True)
-        self.qValuePlt.plot(self.ep, self.rewards, pen=(0, 255, 0), clear=True)
+        self.rewardsPlt.plot(self.ep, self.rewards, pen=(255, 0, 0),  clear=True)
+        self.rewardsPlt.plot(self.ep, self.avg_rewards, pen=(0, 255, 255), width=2)
+        
+        self.qValuePlt.plot(self.ep, self.data_list, pen=(0, 255, 0), clear=True)
 
     def closeEvent(self, event):
         rospy.signal_shutdown("Window closed")

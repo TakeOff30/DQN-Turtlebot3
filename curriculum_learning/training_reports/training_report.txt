@@ -4,52 +4,52 @@ TURTLEBOT3 DQN TRAINING REPORT
 
 TRAINING CONFIGURATION
 --------------------------------------------------------------------------------
-Number of Episodes: 1000
-Gamma: 0.99
-Epsilon Start: 1.0
-Epsilon End: 0.1
-Epsilon Decay: 6000
+Number of Episodes: 2000
+Gamma: 0.95
+Epsilon Start: 0.99
+Epsilon End: 0.05
+Epsilon Decay: 1000
 Batch Size: 128
-Target Update Frequency: 5000
+Target Update Frequency: 1000
 
 TRAINING RESULTS
 --------------------------------------------------------------------------------
-Total Training Time: 01:55:19
-Highest Reward Achieved: 231.17
-Average Episode Duration: 27.75 steps
-Overall Score (mean last time steps): 27.75
-Best 100 Episodes Score: -122.42
+Total Training Time: 08:01:30
+Highest Reward Achieved: 316.09
+Average Episode Duration: 51.12 steps
+Overall Score (mean last time steps): 51.12
+Best 100 Episodes Score: -95.41
 
 PERFORMANCE RECORDS
 --------------------------------------------------------------------------------
 Maximum Episode Duration: 200 steps
-Maximum Distance Traveled: 6.72 meters
+Maximum Distance Traveled: 7.25 meters
 
 EPISODE STATISTICS
 --------------------------------------------------------------------------------
 Reward Statistics:
-  Mean: -145.55
-  Std Dev: 154.02
-  Min: -969.10
-  Max: 231.17
+  Mean: -127.69
+  Std Dev: 170.10
+  Min: -973.62
+  Max: 316.09
 
 Duration Statistics:
-  Mean: 27.75 steps
-  Std Dev: 26.40 steps
+  Mean: 51.12 steps
+  Std Dev: 49.43 steps
   Min: 5 steps
   Max: 200 steps
 
 Distance Statistics:
-  Mean: 1.69 meters
-  Std Dev: 0.78 meters
-  Min: 0.71 meters
-  Max: 6.72 meters
+  Mean: 2.03 meters
+  Std Dev: 1.01 meters
+  Min: 0.70 meters
+  Max: 7.25 meters
 
 MODEL FILES
 --------------------------------------------------------------------------------
 Final Model: /home/ubuntu/simulation_ws/src/curriculum_learning/trained_models/final_model.pth
-Checkpoints: 2 files (every 500 episodes)
+Checkpoints: 4 files (every 500 episodes)
 
 ================================================================================
-Report generated at: 2026-01-20 18:29:45
+Report generated at: 2026-01-22 06:07:40
 ================================================================================

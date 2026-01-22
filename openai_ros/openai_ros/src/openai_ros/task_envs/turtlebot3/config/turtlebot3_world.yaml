@@ -31,7 +31,3 @@ turtlebot3: #namespace
     #   - Yaw alignment reward: 1.0 - (2.0 * |goal_angle| / pi)
     #   - Obstacle penalty: weighted by direction and proximity (front obstacles penalized 10x more)
     #   - Danger zone: 0.5m, Safety margin: 0.2m
-
-    # Checkpoint Management
-    resume_from_checkpoint: false # Whether to resume training from a saved checkpoint
-    checkpoint_file: 'best_model.pth' # Name of checkpoint file to load when resuming
