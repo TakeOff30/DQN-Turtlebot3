@@ -160,20 +160,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         dy = self.goal_y - self.robot_y
         self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
         
-        try:
-            # Create model state message
-            model_state = ModelState()
-            model_state.model_name = 'goal_marker'
-            model_state.pose.position.x = self.goal_x
-            model_state.pose.position.y = self.goal_y
-            model_state.pose.position.z = 0.1
-            model_state.pose.orientation.w = 1.0
-            
-            # Move the marker
-            self.set_model_state_srv(model_state)
-            rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
-        except rospy.ServiceException as e:
-            rospy.logerr("Failed to move goal marker: %s" % str(e))
+        
 
 
     def _set_init_pose(self):
@@ -203,7 +190,20 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Generate random goal position at fixed distance from robot (1 meter)
         
         # Move the goal marker to new position in Gazebo
-
+        try:
+            # Create model state message
+            model_state = ModelState()
+            model_state.model_name = 'goal_marker'
+            model_state.pose.position.x = self.goal_x
+            model_state.pose.position.y = self.goal_y
+            model_state.pose.position.z = 0.1
+            model_state.pose.orientation.w = 1.0
+            
+            # Move the marker
+            self.set_model_state_srv(model_state)
+            rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
+        except rospy.ServiceException as e:
+            rospy.logerr("Failed to move goal marker: %s" % str(e))
 
     def _set_action(self, action):
         """
