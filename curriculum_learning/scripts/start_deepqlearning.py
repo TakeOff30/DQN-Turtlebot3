@@ -26,8 +26,6 @@ from training_reporter import TrainingReporter
 from training_manager import TrainingManager
 from std_msgs.msg import Float32MultiArray
 
-from curriculum_learning import model_path, reports_dir, outdir
-
 class ReplayMemory(object):
 
     def __init__(self, capacity):
@@ -137,6 +135,18 @@ if __name__ == '__main__':
     env = StartOpenAI_ROS_Environment(
         task_and_robot_environment_name)
     rospy.loginfo("Gym environment ready")
+    rospack = rospkg.RosPack()
+    pkg_path = rospack.get_path('curriculum_learning')
+    outdir = pkg_path + '/training_results'
+
+    # Create directories for outputs
+    model_path = pkg_path + '/trained_models'
+    reports_dir = pkg_path + '/training_reports'
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    if not os.path.exists(reports_dir):
+        os.makedirs(reports_dir)
+
 
     last_time_steps = numpy.ndarray(0)
 

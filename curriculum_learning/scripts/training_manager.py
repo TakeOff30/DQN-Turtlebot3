@@ -1,5 +1,3 @@
-from curriculum_learning import model_dir, reports_dir
-
 class TrainingManager:
     def __init__(self, checkpoint_manager, reporter):
         self.max_episode_duration = 0

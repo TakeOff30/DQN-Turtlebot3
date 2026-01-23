@@ -400,6 +400,13 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) * 0.1
         
         # 3. Obstacle Penalty (using our new weighted function)
+        #TODO do not discretize, keep front scans
+        # understand how to get minumum angle and angle increment info
+        # self.laser_scan.angle_min
+        # self.laser_scan.angle_increment
+        print(self.laser_scan.angle_min)
+        print(self.laser_scan.angle_increment)
+        
         laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
         obstacle_penalty = self._compute_obstacle_penalty(laser_raw)
         
