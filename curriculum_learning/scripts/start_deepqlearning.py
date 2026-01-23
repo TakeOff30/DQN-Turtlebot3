@@ -64,8 +64,7 @@ class DQN(nn.Module):
 def select_action(state, eps_start, eps_end, eps_decay):
     global steps_done
     sample = random.random()
-    eps_threshold = eps_end + (eps_start - eps_end) * \
-        math.exp(-1. * steps_done / eps_decay)
+    eps_threshold = eps_end + (eps_start - eps_end) * math.exp(-1. * steps_done / eps_decay)
     steps_done += 1
     
     if sample > eps_threshold:
@@ -290,7 +289,7 @@ if __name__ == '__main__':
             logger.log_step_start(t)
             # Select and perform an action
             action, epsilon = select_action(state, epsilon_start, epsilon_end, epsilon_decay)
-
+            rospy.loginfo(f"Epsilon: {epsilon:.4f} | Step: {t} | Action: {action.item()}")
             observation, reward, done, info = env.step(action.item())
             rospy.logwarn(f"=== CURRENT REWARD: {reward}===")
             
@@ -362,7 +361,7 @@ if __name__ == '__main__':
                 episode_distances_history.append(episode_distance)
                 reward_breakdown_history.append(episode_breakdown)
 
-                # Track current epsilon
+                # Track current epsilon (for plot)
                 current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
                 episode_epsilon_history.append(current_eps)
                 

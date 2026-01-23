@@ -12,7 +12,7 @@ turtlebot3:
     max_episode_steps: 200  # Shorter episodes for faster learning
     
     # Robot control
-    linear_forward_speed: 0.25
+    linear_forward_speed: 0.20
     linear_turn_speed: 0.1
     angular_speed: 1.5
     init_linear_forward_speed: 0.0
@@ -20,7 +20,7 @@ turtlebot3:
     
     # Observations (24 laser readings + 2 goal coordinates)
     new_ranges: 24  # Samples 24 laser readings from 360 total (every 15th reading)
-    min_range: 0.18  # More permissive for stage 1
+    min_range: 0.25  # More permissive for stage 1
     max_laser_value: 3.5
     min_laser_value: 0.0
     n_actions: 3
@@ -47,8 +47,8 @@ turtlebot3:
     gamma: 0.99
     epsilon_start: 0.99
     epsilon_end: 0.05
-    epsilon_decay: 250
-    n_episodes: 500
+    epsilon_decay: 20000 # (n_episode/2)*avg_steps_per_episode)/4 = (500)*50
+    n_episodes: 5000
     target_update: 20 # after 20 episodes the target net is updated
     batch_size: 128
     learning_rate: 0.0005

@@ -4,6 +4,7 @@ from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
 from gym.envs.registration import register
 from geometry_msgs.msg import Vector3, Pose, Quaternion
+from sensor_msgs.msg import LaserScan
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
 from gazebo_msgs.srv import SpawnModel, DeleteModel, SetModelState
@@ -202,6 +203,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Move the goal marker to new position in Gazebo
         self._move_goal_marker()
         rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
+        
 
 
     def _set_action(self, action):
@@ -397,14 +399,14 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward (from Script 1)
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) * 0.1
+        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi) )* 0.1
         
         # 3. Obstacle Penalty (using our new weighted function)
         laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
         obstacle_penalty = self._compute_obstacle_penalty(laser_raw)
         
         # Living penalty to encourage faster completion
-        time_penalty = -0.2
+        time_penalty = -0.25
     
         # 4. Total step reward
         reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty

@@ -21,7 +21,7 @@ class TrainingLogger:
         m, s = divmod(int(time.time() - self.start_time), 60)
         h, m = divmod(m, 60)
         
-        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} - epsilon: {round(epsilon, 2)}] - "
+        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} ] - "
                     f"Reward: {reward} - Distance: {round(distance, 2)}m - "
                     f"Time: {h-self.last_h:d}:{m-self.last_m:02d}:{s-self.last_s:02d}")
         
