@@ -46,8 +46,8 @@ class DQN(nn.Module):
 
     def __init__(self, inputs, outputs):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 128)
-        self.fc2 = nn.Linear(128, 128)
+        self.fc1 = nn.Linear(inputs, 256)
+        self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, 64)
         self.head = nn.Linear(64, outputs)
         
@@ -81,7 +81,9 @@ def select_action(state, eps_start, eps_end, eps_decay):
 
 
 def optimize_model(batch_size, gamma):
+    global loss_values, last_loss_value
     if len(memory) < batch_size:
+        last_loss_value = None
         return
     transitions = memory.sample(batch_size)
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
@@ -118,6 +120,8 @@ def optimize_model(batch_size, gamma):
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss_values.append(loss.item())
+    last_loss_value = loss.item()
 
     optimizer.zero_grad()
     loss.backward()
@@ -189,6 +193,8 @@ if __name__ == '__main__':
     episode_durations = []
     steps_done = 0
     start_episode = 0
+    loss_values = []
+    last_loss_value = None
     
     checkpoint_manager = CheckpointManager(model_path)
     logger = TrainingLogger()
@@ -299,6 +305,7 @@ if __name__ == '__main__':
         # Publish episode results for result_graph visualization
         # data[0]: Average max Q-value from last batch
         # data[1]: Total episode reward
+        # data[2]: Loss (if available)
         with torch.no_grad():
             if len(memory) > 0:
                 # Calculate average max Q-value over recent experiences
@@ -311,7 +318,11 @@ if __name__ == '__main__':
             else:
                 avg_max_q = 0.0
         result_msg = Float32MultiArray()
-        result_msg.data = [float(avg_max_q), float(cumulated_reward)]
+        # Send loss if available, else omit
+        if last_loss_value is not None:
+            result_msg.data = [float(avg_max_q), float(cumulated_reward), float(last_loss_value)]
+        else:
+            result_msg.data = [float(avg_max_q), float(cumulated_reward)]
         result_pub.publish(result_msg)
         
         if highest_reward < cumulated_reward:

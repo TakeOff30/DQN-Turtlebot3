@@ -132,6 +132,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.robot_y = 0.0
         self.robot_yaw = 0.0
         self.previous_distance_to_goal = None
+        self.succeed = False
+        self.fail = False
         
         # Wait for Gazebo service to move goal marker
         rospy.loginfo("Waiting for Gazebo set_model_state service...")
@@ -191,6 +193,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         of an episode. Generates random goal position within arena bounds.
         :return:
         """
+        
         # Reset episode tracking
         self.succeed = False
         self.fail = False
@@ -267,7 +270,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return numpy.array(full_observations, dtype=numpy.float32)
     
     def _is_done(self, observations):
-        return self._is_failed()
+        return self._is_failed() or self._is_succeded()
         
     def _is_failed(self):
         """
@@ -276,18 +279,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         2. Too close to obstacle (collision)
         3. Maximum steps exceeded
         """
-        # Check IMU for crash detection
-        # imu_data = self.get_imu()
-        # linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
-        # if linear_acceleration_magnitude > self.max_linear_aceleration:
-        #     rospy.logerr("CRASH DETECTED! Acceleration: %.2f > %.2f" % (linear_acceleration_magnitude, self.max_linear_aceleration))
-        #     self.fail = True
-        #     return True
 
         laser_scan = self.get_laser_scan()
         
         # Filter out invalid readings (inf, nan, 0)
-        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0.0)]
+        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0)]
         
         if len(valid_ranges) == 0:
             rospy.logwarn("No valid laser readings!")
@@ -403,11 +399,13 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
-            distance_reward = distance_delta * 20.0  # Scale to make meaningful
+            distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
+            distance_reward = distance_delta * 20.0 * distance_scaling_factor
         else:
             distance_reward = 0.0
         
         self.previous_distance_to_goal = current_distance
+        print("DISTANCE REWARD: ", distance_reward)
     
         # 2. Alignment Reward
         # 1.0 if facing goal, -1.0 if facing away.
@@ -418,18 +416,16 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         front_ranges, front_angles = self._compute_laser_scans(self.laser_scan)
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         # Living penalty to encourage faster completion
-        #time_penalty = -0.2
 
         print("OBSTACLE PENALTY: ", obstacle_penalty)
-        print("DISTANCE REWARD: ", distance_reward)
         
         # 4. Total step reward
         reward = distance_reward + yaw_reward + obstacle_penalty #+ time_penalty
-        
+        # reward = yaw_reward + obstacle_penalty
         # 5. Terminal Rewards (Overriding step rewards)
         if self._is_succeded():
             reward = 100.0
-            self.succeed = False
+            # self.succeed = False
         elif self.fail:
             reward = -50.0
         
