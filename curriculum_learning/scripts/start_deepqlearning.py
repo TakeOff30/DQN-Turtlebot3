@@ -202,6 +202,8 @@ if __name__ == '__main__':
     warm_start_obs = env.reset()
     warm_start_state = torch.tensor(warm_start_obs, device=device, dtype=torch.float)
 
+    rospy.logwarn("=== START WARM UP ===")
+
     while len(memory) < MIN_REPLAY_SIZE:
         action = torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
         observation, reward, done, _ = env.step(action.item())
