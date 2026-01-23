@@ -223,7 +223,9 @@ if __name__ == '__main__':
     
     for i_episode in range(start_episode, n_episodes):
         logger.log_episode_start(i_episode)
-    
+
+        max_episode_duration = 0
+        max_distance_traveled = 0.0
         cumulated_reward = 0
         episode_distance = 0.0
         last_distance_check = 0.0
