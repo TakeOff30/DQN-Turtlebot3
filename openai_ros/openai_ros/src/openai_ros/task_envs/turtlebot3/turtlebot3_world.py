@@ -334,41 +334,65 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         normalized_weights = scaled_weights / numpy.sum(scaled_weights)
         return normalized_weights
     
-    def _compute_obstacle_penalty(self, laser_ranges):
-        """
-        Takes ONLY the laser part of the observation.
-        Uses directional weights to penalize frontal obstacles more.
-        """
-        ranges = numpy.array(laser_ranges)
-        num_readings = len(ranges)
-        
-        # Map each laser index to an angle from -pi to pi
-        angles = numpy.linspace(-numpy.pi, numpy.pi, num_readings)
-        
-        # Only consider obstacles within danger zone (e.g., 0.5m)
-        # We ignore the last two elements (Distance and Angle) if they were accidentally passed
-        valid_mask = (ranges <= 0.5) & (ranges > 0)
+    def _compute_weighted_obstacle_reward(self, front_ranges, front_angles):
+        if not front_ranges or not front_angles:
+            return 0.0
+
+        front_ranges = numpy.array(front_ranges)
+        front_angles = numpy.array(front_angles)
+
+        valid_mask = front_ranges <= 0.5
         if not numpy.any(valid_mask):
-            return 0.0 
+            return 0.0
 
-        danger_ranges = ranges[valid_mask]
-        danger_angles = angles[valid_mask]
-        
-        # Directional weights: Frontal obstacles (angle near 0) get higher weights
-        # cos^6 makes the penalty drop off sharply as objects move to the sides
-        weights = (numpy.cos(danger_angles))**6 + 0.1
-        
-        # Normalize weights so they don't explode the reward value
-        weights = weights / numpy.max(weights) 
+        front_ranges = front_ranges[valid_mask]
+        front_angles = front_angles[valid_mask]
 
-        # Calculate distance-based decay (closer = much higher penalty)
-        # 0.2m is the 'collision buffer'
-        safe_distances = numpy.clip(danger_ranges - 0.2, 0.01, 3.5)
-        decay = numpy.exp(-3.0 * safe_distances)
-        
-        # Final weighted penalty
+        relative_angles = numpy.unwrap(front_angles)
+        relative_angles[relative_angles > numpy.pi] -= 2 * numpy.pi
+
+        weights = self.compute_directional_weights(relative_angles, max_weight=10.0)
+
+        safe_dists = numpy.clip(front_ranges - 0.25, 1e-2, 3.5)
+        decay = numpy.exp(-3.0 * safe_dists)
+
         weighted_decay = numpy.dot(weights, decay)
-        return -(1.0 + 4.0 * weighted_decay)
+
+        reward = - (1.0 + 4.0 * weighted_decay)
+
+        return reward
+    
+    def _compute_laser_scans(self, observations):
+        print(self.laser_scan.angle_min)
+        print(self.laser_scan.angle_increment)
+        # save only if angle in 0 < x < 2/3 pi or 4/3 pi < x < 2 pi
+        scan_ranges = observations
+        front_ranges = []
+        front_angles = []
+
+        num_of_lidar_rays = len(observations.ranges)
+        angle_min = observations.angle_min
+        angle_increment = observations.angle_increment
+
+        for i in range(num_of_lidar_rays):
+            angle = angle_min + i * angle_increment
+            distance = observations.ranges[i]
+
+            if distance == float ('Inf') or numpy.isinf(distance):
+                scan_ranges.append(self.max_laser_value)
+            elif numpy.isnan(distance):
+                scan_ranges.append(self.min_laser_value)
+            else:
+                scan_ranges.append(float(distance))
+
+            scan_ranges.append(distance)
+
+            if (0 <= angle <= math.pi/2) or (3*math.pi/2 <= angle <= 2*math.pi):
+                front_ranges.append(distance)
+                front_angles.append(angle)
+
+        return front_ranges, front_angles
+        
 
     def _compute_reward(self, observations, done):
         # 1. Extract pieces from the observation vector
@@ -400,31 +424,25 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) * 0.1
         
         # 3. Obstacle Penalty (using our new weighted function)
-        #TODO do not discretize, keep front scans
-        # understand how to get minumum angle and angle increment info
-        # self.laser_scan.angle_min
-        # self.laser_scan.angle_increment
-        print(self.laser_scan.angle_min)
-        print(self.laser_scan.angle_increment)
-        
-        laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
-        obstacle_penalty = self._compute_obstacle_penalty(laser_raw)
-        
+        front_ranges, front_angles = self._compute_laser_scans(self.laser_scan)
+        # laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
+        obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
+        print(obstacle_penalty)
         # Living penalty to encourage faster completion
-        time_penalty = -0.2
+        #time_penalty = -0.2
     
         # 4. Total step reward
-        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
+        reward = distance_reward + yaw_reward + obstacle_penalty #+ time_penalty
         
         # 5. Terminal Rewards (Overriding step rewards)
         if self.succeed:
-            reward = 300.0
+            reward = 100.0
         elif self.fail:
             # Check if it was a collision or a timeout
             if self.current_episode_step >= self.max_episode_steps:
-                reward = -50.0  # Mild penalty for timing out
+                reward = -20.0  # Mild penalty for timing out
             else:
-                reward = -100.0 # Heavy penalty for crashing
+                reward = -50.0 # Heavy penalty for crashing
         
         return reward
 
