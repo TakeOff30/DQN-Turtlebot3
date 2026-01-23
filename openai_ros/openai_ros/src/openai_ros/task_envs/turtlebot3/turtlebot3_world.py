@@ -139,9 +139,27 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.set_model_state_srv = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         rospy.loginfo("Gazebo service ready")
         
+        self._move_goal_marker()
+        
 
     def _move_goal_marker(self):
         """Move the existing goal marker to a new position using SetModelState"""
+        angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
+        distance = 1.0  # Fixed 1 meter distance in any direction
+        
+        # Calculate goal position using polar coordinates
+        self.goal_x = self.robot_x + distance * math.cos(angle)
+        self.goal_y = self.robot_y + distance * math.sin(angle)
+        
+        # Clamp to safe arena boundaries
+        self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
+        self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
+        
+        # Calculate actual distance to goal (after clamping)
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+        
         try:
             # Create model state message
             model_state = ModelState()
@@ -183,21 +201,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self._update_robot_position()
         
         # Generate random goal position at fixed distance from robot (1 meter)
-        angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
-        distance = 1.0  # Fixed 1 meter distance in any direction
-        
-        # Calculate goal position using polar coordinates
-        self.goal_x = self.robot_x + distance * math.cos(angle)
-        self.goal_y = self.robot_y + distance * math.sin(angle)
-        
-        # Clamp to safe arena boundaries
-        self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
-        self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
-        
-        # Calculate actual distance to goal (after clamping)
-        dx = self.goal_x - self.robot_x
-        dy = self.goal_y - self.robot_y
-        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
         
         # Move the goal marker to new position in Gazebo
 
