@@ -159,6 +159,22 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+    
+    def _position_goal_marker(self):
+        # Move the goal marker to new position in Gazebo
+        try:
+            # Create model state message
+            model_state = ModelState()
+            model_state.model_name = 'goal_marker'
+            model_state.pose.position.x = self.goal_x
+            model_state.pose.position.y = self.goal_y
+            model_state.pose.position.z = 0.1
+            model_state.pose.orientation.w = 1.0
+            
+            self.set_model_state_srv(model_state)
+            rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
+        except rospy.ServiceException as e:
+            rospy.logerr("Failed to move goal marker: %s" % str(e))
         
     def _set_init_pose(self):
         """Sets the Robot in its init pose"""
@@ -181,21 +197,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.current_episode_step = 0
         
         self._update_robot_position()
+        self._position_goal_marker()
         
-        # Move the goal marker to new position in Gazebo
-        try:
-            # Create model state message
-            model_state = ModelState()
-            model_state.model_name = 'goal_marker'
-            model_state.pose.position.x = self.goal_x
-            model_state.pose.position.y = self.goal_y
-            model_state.pose.position.z = 0.1
-            model_state.pose.orientation.w = 1.0
-            
-            self.set_model_state_srv(model_state)
-            rospy.loginfo("Goal marker moved to (%.2f, %.2f)" % (self.goal_x, self.goal_y))
-        except rospy.ServiceException as e:
-            rospy.logerr("Failed to move goal marker: %s" % str(e))
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx*dx + dy*dy)
 
     def _set_action(self, action):
         """
@@ -316,6 +322,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
             self.succeed = True
             rospy.loginfo("Goal reached! Distance: %.3f meters" % distance_to_goal)
+            self._position_goal_marker()
         
         return self.succeed
     
@@ -396,22 +403,26 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
-            distance_reward = distance_delta * 100.0  # Scale to make meaningful
+            distance_reward = distance_delta * 20.0  # Scale to make meaningful
         else:
             distance_reward = 0.0
         
         self.previous_distance_to_goal = current_distance
     
-        # 2. Alignment Reward (from Script 1)
+        # 2. Alignment Reward
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi) * 0.1
+        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi)
+        print("YAW REWARD: ", yaw_reward)
         
         # 3. Obstacle Penalty (using our new weighted function)
         front_ranges, front_angles = self._compute_laser_scans(self.laser_scan)
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         # Living penalty to encourage faster completion
         #time_penalty = -0.2
-    
+
+        print("OBSTACLE PENALTY: ", obstacle_penalty)
+        print("DISTANCE REWARD: ", distance_reward)
+        
         # 4. Total step reward
         reward = distance_reward + yaw_reward + obstacle_penalty #+ time_penalty
         
