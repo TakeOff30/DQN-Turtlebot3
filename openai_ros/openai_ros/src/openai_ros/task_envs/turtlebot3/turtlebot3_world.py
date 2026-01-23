@@ -200,8 +200,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
         
         # Move the goal marker to new position in Gazebo
-        self._move_goal_marker()
-        rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
 
 
     def _set_action(self, action):
@@ -322,6 +320,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logwarn("Robot position (%.2f, %.2f), Goal (%.2f, %.2f), Distance to goal: %.3f" % (self.robot_x, self.robot_y, self.goal_x, self.goal_y, distance_to_goal))
         
         if distance_to_goal < self.success_threshold:
+            # move goal
+            self._move_goal_marker()
+            rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
             self.succeed = True
             rospy.loginfo("Goal reached! Distance: %.3f meters" % distance_to_goal)
         
@@ -351,7 +352,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         relative_angles = numpy.unwrap(front_angles)
         relative_angles[relative_angles > numpy.pi] -= 2 * numpy.pi
 
-        weights = self.compute_directional_weights(relative_angles, max_weight=10.0)
+        weights = self._compute_directional_weights(relative_angles, max_weight=10.0)
 
         safe_dists = numpy.clip(front_ranges - 0.25, 1e-2, 3.5)
         decay = numpy.exp(-3.0 * safe_dists)
@@ -366,7 +367,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         print(self.laser_scan.angle_min)
         print(self.laser_scan.angle_increment)
         # save only if angle in 0 < x < 2/3 pi or 4/3 pi < x < 2 pi
-        scan_ranges = observations
+        scan_ranges = []
         front_ranges = []
         front_angles = []
 
@@ -384,8 +385,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 scan_ranges.append(self.min_laser_value)
             else:
                 scan_ranges.append(float(distance))
-
-            scan_ranges.append(distance)
 
             if (0 <= angle <= math.pi/2) or (3*math.pi/2 <= angle <= 2*math.pi):
                 front_ranges.append(distance)
