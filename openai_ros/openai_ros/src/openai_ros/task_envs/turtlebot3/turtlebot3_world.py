@@ -358,29 +358,56 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return reward
     
     def _compute_laser_scans(self, observations):
+        # We want exactly 40 rays for the observation
+        target_ray_count = 40
+        
         scan_ranges = []
-        front_ranges = []
-        front_angles = []
+        scan_angles = []
+        
         num_of_lidar_rays = len(observations.ranges)
         angle_min = observations.angle_min
         angle_increment = observations.angle_increment
 
+        # 1. Collect ALL valid front rays first
+        # Front is defined as [0, pi/2] U [3pi/2, 2pi]
+        # This covers the front 180 degrees of the robot
+        
+        raw_front_ranges = []
+        raw_front_angles = []
+        
         for i in range(num_of_lidar_rays):
             angle = angle_min + i * angle_increment
-            distance = observations.ranges[i]
-
-            if distance == float ('Inf') or numpy.isinf(distance):
-                scan_ranges.append(self.max_laser_value)
-            elif numpy.isnan(distance):
-                scan_ranges.append(self.min_laser_value)
-            else:
-                scan_ranges.append(float(distance))
-
+            
+            # Normalize angle to [0, 2pi)
+            if angle < 0:
+                angle += 2 * math.pi
+            
+            # Check if in front sector
             if (0 <= angle <= math.pi/2) or (3*math.pi/2 <= angle <= 2*math.pi):
-                front_ranges.append(distance)
-                front_angles.append(angle)
+                dist = observations.ranges[i]
+                if numpy.isinf(dist):
+                    dist = self.max_laser_value
+                elif numpy.isnan(dist):
+                    dist = self.min_laser_value
+                
+                raw_front_ranges.append(dist)
+                raw_front_angles.append(angle)
 
-        return front_ranges, front_angles
+        # 2. Downsample to exactly target_ray_count (40)
+        # We use linspace to get evenly spaced indices
+        total_front_rays = len(raw_front_ranges)
+        
+        if total_front_rays > 0:
+            indices = numpy.linspace(0, total_front_rays - 1, target_ray_count, dtype=int)
+            
+            final_ranges = [raw_front_ranges[i] for i in indices]
+            final_angles = [raw_front_angles[i] for i in indices]
+        else:
+            # Fallback if no rays found (unlikely)
+            final_ranges = [self.max_laser_value] * target_ray_count
+            final_angles = [0.0] * target_ray_count
+            
+        return final_ranges, final_angles
         
 
     def _compute_reward(self, observations, done):

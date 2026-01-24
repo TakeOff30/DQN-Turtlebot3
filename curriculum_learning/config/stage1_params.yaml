@@ -12,8 +12,8 @@ turtlebot3:
     max_episode_steps: 800 # Shorter episodes for faster learning
 
     # Robot control
-    linear_forward_speed: 0.2
-    linear_turn_speed: 0.1
+    linear_forward_speed: 0.3
+    linear_turn_speed: 0.2
     angular_speed: 1.5
     init_linear_forward_speed: 0.0
     init_linear_turn_speed: 0.0
@@ -47,9 +47,9 @@ turtlebot3:
     gamma: 0.99
     epsilon_start: 0.99
     epsilon_end: 0.05
-    epsilon_decay: 6000
-    n_episodes: 1000
-    target_update: 50 # after 20 episodes the target net is updated
+    epsilon_decay: 15000
+    n_episodes: 3500
+    target_update: 100 # after 20 episodes the target net is updated
     batch_size: 128
     learning_rate: 0.0007
 
