@@ -51,6 +51,16 @@ class DQN(nn.Module):
         self.fc3 = nn.Linear(64, 32)
         self.head = nn.Linear(32, outputs)
         
+        # HE initialization
+        nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
+        nn.init.kaiming_uniform_(self.fc2.weight, nonlinearity='leaky_relu')
+        nn.init.kaiming_uniform_(self.fc3.weight, nonlinearity='leaky_relu')
+        nn.init.xavier_uniform_(self.head.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)
+        nn.init.zeros_(self.head.bias)
+        
                 
     def forward(self, x):
         x = x.to(device)

@@ -358,8 +358,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return reward
     
     def _compute_laser_scans(self, observations):
-        # We want exactly 40 rays for the observation
-        target_ray_count = 40
+        # We want exactly 'new_ranges' rays for the observation (es. 24)
+        target_ray_count = self.new_ranges
         
         scan_ranges = []
         scan_angles = []
@@ -369,9 +369,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         angle_increment = observations.angle_increment
 
         # 1. Collect ALL valid front rays first
-        # Front is defined as [0, pi/2] U [3pi/2, 2pi]
-        # This covers the front 180 degrees of the robot
-        
         raw_front_ranges = []
         raw_front_angles = []
         
@@ -382,7 +379,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             if angle < 0:
                 angle += 2 * math.pi
             
-            # Check if in front sector
+            # Check if in front sector (Front 180 degrees approx)
             if (0 <= angle <= math.pi/2) or (3*math.pi/2 <= angle <= 2*math.pi):
                 dist = observations.ranges[i]
                 if numpy.isinf(dist):
@@ -393,23 +390,44 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 raw_front_ranges.append(dist)
                 raw_front_angles.append(angle)
 
-        # 2. Downsample to exactly target_ray_count (40)
-        # We use linspace to get evenly spaced indices
-        total_front_rays = len(raw_front_ranges)
-        
-        if total_front_rays > 0:
-            indices = numpy.linspace(0, total_front_rays - 1, target_ray_count, dtype=int)
-            
-            final_ranges = [raw_front_ranges[i] for i in indices]
-            final_angles = [raw_front_angles[i] for i in indices]
-        else:
-            # Fallback if no rays found (unlikely)
-            final_ranges = [self.max_laser_value] * target_ray_count
-            final_angles = [0.0] * target_ray_count
-            
-        return final_ranges, final_angles
-        
+        # --- SAFETY CHECK (Nuovo) ---
+        # Se non abbiamo abbastanza raggi grezzi, restituiamo valori di default
+        # per evitare crash nella divisione o slicing.
+        if len(raw_front_ranges) < target_ray_count:
+            return [self.max_laser_value] * target_ray_count, [0.0] * target_ray_count
 
+        # 2. Min-Pooling
+        # Calcola la dimensione del "chunk" (fetta). 
+        # Es. se hai 180 raggi grezzi e ne vuoi 24 in output, chunk_size = 7
+        chunk_size = int(len(raw_front_ranges) / target_ray_count)
+        
+        final_ranges = []
+        final_angles = []
+        
+        for i in range(target_ray_count):
+            start_idx = i * chunk_size
+            # L'ultimo chunk prende tutto ciò che rimane per evitare errori di arrotondamento
+            if i == target_ray_count - 1:
+                end_idx = len(raw_front_ranges)
+            else:
+                end_idx = (i + 1) * chunk_size
+            
+            sector_ranges = raw_front_ranges[start_idx:end_idx]
+            sector_angles = raw_front_angles[start_idx:end_idx]
+            
+            if len(sector_ranges) > 0:
+                # LA MAGIA: Prendi il minimo! (Ostacolo più vicino nel settore)
+                min_val = min(sector_ranges)
+                final_ranges.append(min_val)
+                min_idx = sector_ranges.index(min_val)
+                final_angles.append(sector_angles[min_idx])
+            else:
+                # Fallback se il settore è vuoto (raro grazie al safety check sopra)
+                final_ranges.append(self.max_laser_value)
+                final_angles.append(0.0) 
+                
+        return final_ranges, final_angles
+    
     def _compute_reward(self, observations, done):
         # 1. Extract pieces from the observation vector
         # observations = [laser_0 ... laser_n, distance, angle]
@@ -436,25 +454,38 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = 1.0 - (2.0 * abs(goal_angle) / math.pi)
+        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi))*0.8
         print("YAW REWARD: ", yaw_reward)
         
         # 3. Obstacle Penalty (using our new weighted function)
-        front_ranges, front_angles = self._compute_laser_scans(self.laser_scan)
+        laser_scan = self.get_laser_scan() # to be sure to Get latest laser scan 
+        front_ranges, front_angles = self._compute_laser_scans(laser_scan)
+        
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         # Living penalty to encourage faster completion
+        time_penalty = -0.05
+        # Se siamo vicini al goal (es. < 0.5m), riduciamo la paura del muro.
+        # Creiamo un fattore di scala che va da 0.2 (molto coraggioso) a 1.0 (prudenza standard)
+        # man mano che ci allontaniamo dal goal.
+        
+        courage_zone = 0.5 # Metri dal goal in cui attivare la riduzione della penalità
+        if current_distance < courage_zone:
+            # Più siamo vicini, meno conta la penalità (fino a un minimo del 20%)
+            penalty_scale = max(0.2, current_distance / courage_zone)
+            obstacle_penalty *= penalty_scale
+            print(f"COURAGE MODE ACTIVE: Penalty scaled by {penalty_scale:.2f}")
+        # --------------------
 
         print("OBSTACLE PENALTY: ", obstacle_penalty)
-        
         # 4. Total step reward
-        reward = distance_reward + yaw_reward + obstacle_penalty #+ time_penalty
+        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
         # reward = yaw_reward + obstacle_penalty
         # 5. Terminal Rewards (Overriding step rewards)
         if self._is_succeded():
-            reward = 100.0
+            reward = 200.0
             # self.succeed = False
         elif self.fail:
-            reward = -50.0
+            reward = -200.0
         
         return reward
 

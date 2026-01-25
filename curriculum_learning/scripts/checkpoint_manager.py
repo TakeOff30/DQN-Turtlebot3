@@ -3,6 +3,7 @@
 import torch
 import rospy
 import os
+from datetime import datetime
 
 class CheckpointManager:
     def __init__(self, model_path):
@@ -11,14 +12,16 @@ class CheckpointManager:
             os.makedirs(model_path)
     
     def save_final_model(self, policy_net, target_net, optimizer):
-        """Save final model at end of training."""
+        """Save final model at end of training with timestamp.        """
         final_model_data = {
             'policy_net_state_dict': policy_net.state_dict(),
             'target_net_state_dict': target_net.state_dict(),
             'optimizer_state_dict': optimizer.state_dict()
         }
         
-        final_path = f"{self.model_path}/final_model.pth"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        final_filename = f"final_model_{timestamp}.pth"
+        final_path = os.path.join(self.model_path, final_filename)
         torch.save(final_model_data, final_path)
         return final_path
     

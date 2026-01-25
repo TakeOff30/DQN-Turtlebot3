@@ -29,7 +29,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.figure(figsize=(20, 15))
 
         # 1. Rewards
-        plt.subplot(3, 2, 1)
+        plt.subplot(4, 2, 1)
         if len(rewards) > 0:
             plt.plot(rewards, color='blue', alpha=0.3)
             # Calculate moving average
@@ -42,7 +42,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.grid(True)
 
         # 2. Durations (Steps)
-        plt.subplot(3, 2, 2)
+        plt.subplot(4, 2, 2)
         if len(durations) > 0:
             plt.plot(durations, color='green')
         plt.title('Duration (Steps) per Episode')
@@ -50,7 +50,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.grid(True)
 
         # 3. Distances
-        plt.subplot(3, 2, 3)
+        plt.subplot(4, 2, 3)
         if len(distances) > 0:
             plt.plot(distances, color='orange')
         plt.title('Distance Traveled (m)')
@@ -58,7 +58,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.grid(True)
 
         # 4. Success Rate (Approximate based on Reward)
-        plt.subplot(3, 2, 4)
+        plt.subplot(4, 2, 4)
         if len(rewards) > 0 and len(durations) > 0:
             # Binary success (1 if reward > 100, indicating goal reached)
             successes = [1 if r > 100 else 0 for r in rewards]
@@ -73,7 +73,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.grid(True)
         
         # 5. Epsilon Decay
-        plt.subplot(3, 2, 5)
+        plt.subplot(4, 2, 5)
         if len(epsilons) > 0:
             plt.plot(epsilons, color='red')
         plt.title('Epsilon Decay')
@@ -82,7 +82,7 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.grid(True)
         
         # 6. Reward Breakdown
-        plt.subplot(3, 2, 6)
+        plt.subplot(4, 2, 6)
         if reward_breakdown and isinstance(reward_breakdown, dict):
             for key, values in reward_breakdown.items():
                 if values and len(values) > 0:
@@ -101,6 +101,9 @@ def plot_training_metrics(rewards, durations, distances, epsilons, reward_breakd
         plt.savefig(filename, dpi=100, bbox_inches='tight')
         plt.close()
         print(f"Plot saved successfully to: {filename}")
+        
+        # Action distribution plot
+        plt.subplot(4, 2, 7)
         
     except Exception as e:
         print(f"Error generating plot: {e}")
