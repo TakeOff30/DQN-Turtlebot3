@@ -259,7 +259,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return numpy.array(full_observations, dtype=numpy.float32)
     
     def _is_done(self, observations):
-        return self._is_failed() or self._is_succeded()
+        return self._is_failed()
         
     def _is_failed(self):
         """
@@ -347,17 +347,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return reward
     
     def _compute_laser_scans(self, observations):
-        # We want exactly 'new_ranges' rays for the observation (es. 24)
         target_ray_count = self.new_ranges
-        
-        scan_ranges = []
-        scan_angles = []
         
         num_of_lidar_rays = len(observations.ranges)
         angle_min = observations.angle_min
         angle_increment = observations.angle_increment
 
-        # 1. Collect ALL valid front rays first
         raw_front_ranges = []
         raw_front_angles = []
         
@@ -379,15 +374,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 raw_front_ranges.append(dist)
                 raw_front_angles.append(angle)
 
-        # --- SAFETY CHECK (Nuovo) ---
-        # Se non abbiamo abbastanza raggi grezzi, restituiamo valori di default
-        # per evitare crash nella divisione o slicing.
+        # if incorrect laser readings
         if len(raw_front_ranges) < target_ray_count:
             return [self.max_laser_value] * target_ray_count, [0.0] * target_ray_count
 
         # 2. Min-Pooling
-        # Calcola la dimensione del "chunk" (fetta). 
-        # Es. se hai 180 raggi grezzi e ne vuoi 24 in output, chunk_size = 7
         chunk_size = int(len(raw_front_ranges) / target_ray_count)
         
         final_ranges = []
@@ -395,7 +386,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         for i in range(target_ray_count):
             start_idx = i * chunk_size
-            # L'ultimo chunk prende tutto ciò che rimane per evitare errori di arrotondamento
             if i == target_ray_count - 1:
                 end_idx = len(raw_front_ranges)
             else:
@@ -405,24 +395,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             sector_angles = raw_front_angles[start_idx:end_idx]
             
             if len(sector_ranges) > 0:
-                # LA MAGIA: Prendi il minimo! (Ostacolo più vicino nel settore)
                 min_val = min(sector_ranges)
                 final_ranges.append(min_val)
                 min_idx = sector_ranges.index(min_val)
                 final_angles.append(sector_angles[min_idx])
             else:
-                # Fallback se il settore è vuoto (raro grazie al safety check sopra)
                 final_ranges.append(self.max_laser_value)
                 final_angles.append(0.0) 
                 
         return final_ranges, final_angles
     
     def _compute_reward(self, observations, done):
-        # 1. Extract pieces from the observation vector
-        # observations = [laser_0 ... laser_n, distance, angle]
-        # 1. Recalculate raw physical values for accurate reward logic.
-        #    We do not use 'observations' directly here because it contains normalized values (0-1),
-        #    which breaks physical distance delta calculations.
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         current_distance = math.sqrt(dx**2 + dy**2)
@@ -431,6 +414,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Normalize angle to [-pi, pi]
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
 
+        # 1. Positive reward if moving towards goal
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
             distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
@@ -457,13 +441,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Creiamo un fattore di scala che va da 0.2 (molto coraggioso) a 1.0 (prudenza standard)
         # man mano che ci allontaniamo dal goal.
         
-        courage_zone = 0.5 # Metri dal goal in cui attivare la riduzione della penalità
+        courage_zone = 0.5 # threshold distance for reducing penalty
         if current_distance < courage_zone:
-            # Più siamo vicini, meno conta la penalità (fino a un minimo del 20%)
+            # reduce obstacle penalty if near goal
             penalty_scale = max(0.2, current_distance / courage_zone)
             obstacle_penalty *= penalty_scale
             print(f"COURAGE MODE ACTIVE: Penalty scaled by {penalty_scale:.2f}")
-        # --------------------
 
         print("OBSTACLE PENALTY: ", obstacle_penalty)
         # 4. Total step reward
@@ -472,7 +455,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # 5. Terminal Rewards (Overriding step rewards)
         if self._is_succeded():
             reward = 200.0
-            # self.succeed = False
+            self.succeed = False
         elif self.fail:
             reward = -200.0
         
