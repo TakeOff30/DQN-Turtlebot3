@@ -1,15 +1,15 @@
 turtlebot3: #namespace
-    # NOTE: DQN training parameters (gamma, epsilon_*, n_episodes, batch_size, etc.) 
+    # NOTE: DQN training parameters (gamma, epsilon_*, n_episodes, batch_size, etc.)
     # should be loaded from stage-specific YAML files (stage1_params.yaml, stage2_params.yaml, etc.)
     # This file only contains default robot control and environment parameters.
-    
-    n_actions: 3 # We have 3 actions, Forwards,TurnLeft,TurnRight
+
+    n_actions: 5
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.15 # Speed for going forwards
+    linear_forward_speed: 0.2 # Speed for going forwards
     linear_turn_speed: 0.05 # Linear speed when turning
-    angular_speed: 1.0 # Angular speed when turning Left or Right
+    angular_velocities: [1.5, 0.75, 0.0, -0.75, -1.5]
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
     init_linear_turn_speed: 0.0 # Initial angular speed in which we start each episode
 
@@ -22,6 +22,7 @@ turtlebot3: #namespace
     # Episode Management
     max_episode_steps: 400 # Maximum steps per episode (default value, override in stage configs)
     running_step: 0.02 # Time step for simulation
+
 
     # Reward System (weighted obstacle penalty format)
     # Terminal rewards are hardcoded in _compute_reward():
