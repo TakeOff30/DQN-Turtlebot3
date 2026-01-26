@@ -7,7 +7,7 @@ turtlebot3: #namespace
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.2 # Speed for going forwards
+    linear_forward_speed: 0.15 # Speed for going forwards
     linear_turn_speed: 0.05 # Linear speed when turning
     angular_velocities: [1.5, 0.75, 0.0, -0.75, -1.5]
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
@@ -20,7 +20,7 @@ turtlebot3: #namespace
     max_linear_aceleration: 5.0 # Linear acceleration value in which we consider Turtlebot 3 has crashed
 
     # Episode Management
-    max_episode_steps: 400 # Maximum steps per episode (default value, override in stage configs)
+    max_episode_steps: 300 # Maximum steps per episode (default value, override in stage configs)
     running_step: 0.02 # Time step for simulation
 
 

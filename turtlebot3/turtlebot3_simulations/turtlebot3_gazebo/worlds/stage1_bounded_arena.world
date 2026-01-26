@@ -55,19 +55,19 @@
     <!-- Wall 1: North (y = 1.5) -->
     <model name="wall_north">
       <static>true</static>
-      <pose>0 1.5 0.5 0 0 0</pose>
+      <pose>0 2.0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>3 0.2 1</size>
+              <size>4 0.2 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>3 0.2 1</size>
+              <size>4 0.2 1</size>
             </box>
           </geometry>
           <material>
@@ -78,22 +78,22 @@
       </link>
     </model>
 
-    <!-- Wall 2: South (y = -1.5) -->
+    <!-- Wall 2: South (y = -2.0) -->
     <model name="wall_south">
       <static>true</static>
-      <pose>0 -1.5 0.5 0 0 0</pose>
+      <pose>0 -2.0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>3 0.2 1</size>
+              <size>4 0.2 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>3 0.2 1</size>
+              <size>4 0.2 1</size>
             </box>
           </geometry>
           <material>
@@ -104,22 +104,22 @@
       </link>
     </model>
 
-    <!-- Wall 3: East (x = 1.5) -->
+    <!-- Wall 3: East (x = 2.0) -->
     <model name="wall_east">
       <static>true</static>
-      <pose>1.5 0 0.5 0 0 0</pose>
+      <pose>2.0 0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.2 3 1</size>
+              <size>0.2 4 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.2 3 1</size>
+              <size>0.2 4 1</size>
             </box>
           </geometry>
           <material>
@@ -130,22 +130,22 @@
       </link>
     </model>
 
-    <!-- Wall 4: West (x = -1.5) -->
+    <!-- Wall 4: West (x = -2.0) -->
     <model name="wall_west">
       <static>true</static>
-      <pose>-1.5 0 0.5 0 0 0</pose>
+      <pose>-2.0 0 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.2 3 1</size>
+              <size>0.2 4 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.2 3 1</size>
+              <size>0.2 4 1</size>
             </box>
           </geometry>
           <material>

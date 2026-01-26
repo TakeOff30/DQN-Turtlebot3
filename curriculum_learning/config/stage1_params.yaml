@@ -29,10 +29,10 @@ turtlebot3:
     max_linear_aceleration: 1.5 # Relaxed for empty environment
 
     # Arena boundaries (3x3 meter bounded box)
-    arena_min_x: -1.5
-    arena_max_x: 1.5
-    arena_min_y: -1.5
-    arena_max_y: 1.5
+    arena_min_x: -2.0
+    arena_max_x: 2.0
+    arena_min_y: -2.0
+    arena_max_y: 2.0
 
     # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
     # Goals spawn within these boundaries to ensure they're accessible
@@ -47,11 +47,11 @@ turtlebot3:
     gamma: 0.99
     epsilon_start: 0.99
     epsilon_end: 0.05
-    epsilon_decay: 5000
-    n_episodes: 1000
+    epsilon_decay: 15000
+    n_episodes: 1500
     target_update: 100 # after 20 episodes the target net is updated
     batch_size: 128
-    learning_rate: 0.001
+    learning_rate: 0.0007
 
     # Checkpoint and Mode Settings
     load_pretrained_model: false # Load model weights from checkpoint (starts training from episode 0)
