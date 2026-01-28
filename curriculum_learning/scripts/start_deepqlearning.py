@@ -366,7 +366,10 @@ if __name__ == '__main__':
                 highest_reward = cumulated_reward
         last_rewards.append(cumulated_reward)
         if len(last_rewards) == 50 and numpy.mean(last_rewards) > max_avg_reward:
-                final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"best_model_stage{stage}")
+            best_policy = policy_net
+            best_target = target_net
+            best_optimizer = optimizer
+            final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"best_model_stage{stage}", timestamp=False)
 
         
         # Save periodic checkpoints
@@ -376,7 +379,9 @@ if __name__ == '__main__':
             final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"checkpoint_model_stage{stage}")
 
     final_training_time = time.time() - logger.start_time
-    
+    if best_policy and best_optimizer and best_target:
+        final_model_path = checkpoint_manager.save_final_model(best_policy, best_target, best_optimizer, f"best_model_stage{stage}")
+
     reporter.write_header()
     reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)
     reporter.write_training_results(final_training_time, highest_reward, last_time_steps)
