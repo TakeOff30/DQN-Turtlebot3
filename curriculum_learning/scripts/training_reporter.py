@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy
-import time
+import datetime
 from utils import plot_training_metrics
 
 class TrainingReporter:
@@ -13,8 +13,8 @@ class TrainingReporter:
                      episode_durations_history, episode_distances_history,
                      episode_epsilon_history, reward_breakdown_history):
         """Generate and save training metrics plot."""
-        
-        plot_filename = f"{outdir}/training_metrics_ep{episode}.png"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_filename = f"{outdir}/training_metrics_ep{episode}_{timestamp}.png"
         plot_training_metrics(episode_rewards_history, episode_durations_history,
                             episode_distances_history, episode_epsilon_history,
                             reward_breakdown_history, plot_filename)
