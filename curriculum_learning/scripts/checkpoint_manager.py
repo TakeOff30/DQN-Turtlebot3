@@ -27,12 +27,19 @@ class CheckpointManager:
         return final_path
     
     def load_checkpoint(self, checkpoint_path, policy_net, target_net):
-        """Load checkpoint from file."""
+        """Load checkpoint from file .pth and restore model weights."""
         rospy.logwarn(f"Loading checkpoint model: {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path)
-        policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-        target_net.load_state_dict(policy_net)
+
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
+        # Load policy network weights
+        policy_net.load_state_dict(checkpoint["policy_net_state_dict"])
+
+        # Sync target network with policy network
+        target_net.load_state_dict(policy_net.state_dict())
         target_net.eval()
-        max_avg_reward = checkpoint['max_avg_reward'] if 'max_avg_reward' in checkpoint.keys() else 0
+
+        max_avg_reward = checkpoint.get("max_avg_reward", 0.0)
+
         rospy.loginfo("Checkpoint loaded successfully!")
         return max_avg_reward

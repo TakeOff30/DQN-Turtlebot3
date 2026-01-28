@@ -42,9 +42,9 @@ turtlebot3:
     epsilon_end: 0.01
     epsilon_decay: 15000
     n_episodes: 1500
-    target_update: 80
+    target_update: 100
     batch_size: 64
-    learning_rate: 0.00025
+    learning_rate: 0.0005
 
     # Checkpoint and Mode Settings
     load_pretrained_model: false # Load model weights from checkpoint (starts training from episode 0)

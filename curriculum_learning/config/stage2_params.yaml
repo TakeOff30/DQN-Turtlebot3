@@ -7,8 +7,8 @@ turtlebot3:
     stage: 2
 
     # Environment parameters
-    running_step: 0.04
-    pos_step: 0.016
+    running_step: 0.03
+    pos_step: 0.01
     max_episode_steps: 400 # More steps for navigation with obstacles
 
     # Robot control
@@ -23,11 +23,25 @@ turtlebot3:
     min_range: 0.15 # Tighter collision threshold
     max_laser_value: 3.5
     min_laser_value: 0.0
-    n_actions: 3
+    n_actions: 5
 
     # Collision detection
-    #max_linear_aceleration: 1.2 # More sensitive
+    max_linear_aceleration: 1.2 # More sensitive
 
+    # Arena boundaries (3x3 meter bounded box)
+    arena_min_x: -2.0
+    arena_max_x: 2.0
+    arena_min_y: -2.0
+    arena_max_y: 2.0
+
+    # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
+    # Goals spawn within these boundaries to ensure they're accessible
+    safe_arena_min_x: -1.0
+    safe_arena_max_x: 1.0
+    safe_arena_min_y: -1.0
+    safe_arena_max_y: 1.0
+    min_spawn_distance: 0.5 # Minimum distance between robot and goal spawn
+    success_threshold: 0.25 # Distance to consider goal reached (meters)
     # DQN parameters - Transfer learning from stage 1
     gamma: 0.995
     epsilon_start: 0.7 # Start with some exploitation from stage 1
@@ -40,5 +54,5 @@ turtlebot3:
 
     # Checkpoint and Mode Settings - Load from stage 1
     load_pretrained_model: true # Load model weights from stage 1
-    checkpoint_file: 'best_model_stage1.pth' # Load from stage 1 or "checkpoint_ep1000.pth"
+    checkpoint_file: 'best_model_stage1_last.pth' # Load from stage 1 or "checkpoint_ep1000.pth"
     inference_mode: false # Set to true for evaluation only (no training)

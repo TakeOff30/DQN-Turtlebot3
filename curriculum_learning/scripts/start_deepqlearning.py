@@ -46,10 +46,10 @@ class DQN(nn.Module):
 
     def __init__(self, inputs, outputs, resume_training=False):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.head = nn.Linear(128, outputs)
+        self.fc1 = nn.Linear(inputs, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 32)
+        self.head = nn.Linear(32, outputs)
         
         # HE initialization
         if resume_training == False:
