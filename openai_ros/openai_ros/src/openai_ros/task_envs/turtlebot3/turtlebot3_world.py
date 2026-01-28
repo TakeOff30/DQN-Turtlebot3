@@ -82,6 +82,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.arena_min_y = rospy.get_param('/turtlebot3/arena_min_y', -1.5)
         self.arena_max_y = rospy.get_param('/turtlebot3/arena_max_y', 1.5)
         
+        self.goal_positions = rospy.get_param('/turtlebot3/goal_positions', None)
+        
         # Safe boundaries for goal spawning (inside walls)
         self.safe_arena_min_x = rospy.get_param('/turtlebot3/safe_arena_min_x', -1.3)
         self.safe_arena_max_x = rospy.get_param('/turtlebot3/safe_arena_max_x', 1.3)
@@ -149,13 +151,16 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
         distance = 1.0  # Fixed 1 meter distance in any direction
         
-        # Calculate goal position using polar coordinates
-        self.goal_x = self.robot_x + distance * math.cos(angle)
-        self.goal_y = self.robot_y + distance * math.sin(angle)
-        
-        # Clamp to safe arena boundaries
-        self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
-        self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
+        if self.goal_positions:
+            positions = random.choice(self.goal_positions)
+            self.goal_x = positions[0]
+            self.goal_y = positions[1]
+        else:
+            self.goal_x = self.robot_x + distance * math.cos(angle)
+            self.goal_y = self.robot_y + distance * math.sin(angle)
+            # Clamp to safe arena boundaries
+            self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
+            self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
         
         # Calculate actual distance to goal (after clamping)
         dx = self.goal_x - self.robot_x

@@ -34,6 +34,38 @@ turtlebot3:
     arena_min_y: -2.0
     arena_max_y: 2.0
 
+    goal_positions:
+        # Safe goal marker positions (x, y) in the 4x4m arena, avoiding all obstacles
+        - [-1.5, -1.5]
+        - [-1.5, 0]
+        - [-1.5, 1.5]
+        - [0, -1.5]
+        - [0, 0]
+        - [0, 1.5]
+        - [1.5, -1.5]
+        - [1.5, 0]
+        - [1.5, 1.5]
+        - [-1.5, 1]
+        - [1, 1.5]
+        - [-1.5, -1]
+        - [1, -1.5]
+        - [-1, 1.5]
+        - [-1, -1.5]
+        - [1.5, -1]
+        - [1.5, 1]
+        - [-1.5, -0.5]
+        - [-1.5, 0.5]
+        - [1.5, -0.5]
+        - [1.5, 0.5]
+        - [-0.5, 1.5]
+        - [0.5, 1.5]
+        - [-0.5, -1.5]
+        - [0.5, -1.5]
+        - [0, -1]
+        - [0, 1]
+        - [-1, 0]
+        - [1, 0]
+
     # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
     # Goals spawn within these boundaries to ensure they're accessible
     safe_arena_min_x: -1.0
