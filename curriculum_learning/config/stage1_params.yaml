@@ -9,7 +9,7 @@ turtlebot3:
     # Environment parameters
     running_step: 0.02
     pos_step: 0.01
-    max_episode_steps: 500 # Shorter episodes for faster learning
+    max_episode_steps: 300 # Shorter episodes for faster learning
 
     # Observations (24 laser readings + 2 goal coordinates)
     new_ranges: 24 # Samples 24 laser readings from 360 total (every 15th reading)
@@ -39,11 +39,11 @@ turtlebot3:
     # DQN parameters - Faster exploration
     gamma: 0.99
     epsilon_start: 0.99
-    epsilon_end: 0.05
+    epsilon_end: 0.01
     epsilon_decay: 15000
     n_episodes: 3000
     target_update: 100
-    batch_size: 128
+    batch_size: 64
     learning_rate: 0.0007
 
     # Checkpoint and Mode Settings

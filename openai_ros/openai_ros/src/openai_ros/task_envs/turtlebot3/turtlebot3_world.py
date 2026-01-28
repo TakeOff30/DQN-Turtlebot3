@@ -427,7 +427,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi))*0.8
+        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi))
         print("YAW REWARD: ", yaw_reward)
         
         # 3. Obstacle Penalty (using our new weighted function)
@@ -436,7 +436,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         # Living penalty to encourage faster completion
-        time_penalty = -0.05
+        time_penalty = -0.15
         # Se siamo vicini al goal (es. < 0.5m), riduciamo la paura del muro.
         # Creiamo un fattore di scala che va da 0.2 (molto coraggioso) a 1.0 (prudenza standard)
         # man mano che ci allontaniamo dal goal.

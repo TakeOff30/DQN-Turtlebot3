@@ -181,6 +181,8 @@ if __name__ == '__main__':
     
     # Sends metrics to result_graph.py
     result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)
+    # Sends metrics to result_action.py
+    result_action_pub = rospy.Publisher('/get_action', Float32MultiArray, queue_size=10)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -266,6 +268,12 @@ if __name__ == '__main__':
             
             cumulated_reward += reward
             
+            # Prepare and publish data for action_graph.py
+            # Format expected: [action_index, ..., total_reward, step_reward]
+            action_msg = Float32MultiArray()
+            action_msg.data = [float(action.item()), float(cumulated_reward), float(reward)]
+            result_action_pub.publish(action_msg)
+            
             try:
                 current_odom = env.unwrapped.get_odom()
                 if previous_odom is not None:
@@ -327,6 +335,7 @@ if __name__ == '__main__':
                     avg_max_q = 0.0
             else:
                 avg_max_q = 0.0
+                
         result_msg = Float32MultiArray()
         # Send loss if available, else omit
         if last_loss_value is not None:
