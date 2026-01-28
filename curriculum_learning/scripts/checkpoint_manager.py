@@ -41,5 +41,5 @@ class CheckpointManager:
 
         max_avg_reward = checkpoint.get("max_avg_reward", 0.0)
 
-        rospy.loginfo("Checkpoint loaded successfully!")
+        rospy.logerr("Checkpoint loaded successfully!")
         return max_avg_reward

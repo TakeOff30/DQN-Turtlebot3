@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy
-import datetime
+from datetime import datetime
 from utils import plot_training_metrics
 
 class TrainingReporter:
