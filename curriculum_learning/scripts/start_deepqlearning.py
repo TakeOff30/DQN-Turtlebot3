@@ -176,7 +176,7 @@ if __name__ == '__main__':
     target_update = rospy.get_param("/turtlebot3/target_update")
     lr = rospy.get_param("/turtlebot3/learning_rate", 0.001)
     running_step = rospy.get_param("/turtlebot3/running_step")
-    resume_training = rospy.get_param("/turtlebot3/resume_from_checkpoint", False)
+    resume_training = rospy.get_param("/turtlebot3/load_pretrained_model", False)
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
     stage = rospy.get_param("/turtlebot3/stage")
     
@@ -199,22 +199,7 @@ if __name__ == '__main__':
     target_net = DQN(n_observations, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
-    
-    if resume_training:
-        checkpoint_path = os.path.join(model_path, checkpoint_file)
-        if not os.path.isfile(checkpoint_path):
-            rospy.logerr(f"Checkpoint file not found: {checkpoint_path}")
-            env.close()
-            exit(1)
         
-        rospy.loginfo(f"Loading trained model from: {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-        target_net.load_state_dict(policy_net.state_dict())
-        target_net.eval()
-        rospy.loginfo("Model loaded successfully!")
-        
-
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     memory = ReplayMemory(50000)
     episode_durations = []
@@ -229,6 +214,22 @@ if __name__ == '__main__':
     logger = TrainingLogger()
     reporter = TrainingReporter(reports_dir, model_path)
     training_manager = TrainingManager(checkpoint_manager, reporter)
+    
+    if resume_training:
+        checkpoint_path = os.path.join(model_path, checkpoint_file)
+        if not os.path.isfile(checkpoint_path):
+            rospy.logerr(f"Checkpoint file not found: {checkpoint_path}")
+            env.close()
+            exit(1)
+        
+        rospy.loginfo(f"Loading trained model from: {checkpoint_path}")
+        max_avg_reward = checkpoint_manager.load_checkpoint(checkpoint_path, policy_net, target_net)
+        # checkpoint = torch.load(checkpoint_path, map_location=device)
+        # max_avg_reward = checkpoint['max_avg_reward']
+        # policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
+        # target_net.load_state_dict(policy_net.state_dict())
+        # target_net.eval()
+        rospy.loginfo("Model loaded successfully!")
     
     # Warm-start replay memory before training
     MIN_REPLAY_SIZE = batch_size * 10
@@ -367,21 +368,16 @@ if __name__ == '__main__':
         last_rewards.append(cumulated_reward)
         if len(last_rewards) == 50 and numpy.mean(last_rewards) > max_avg_reward:
             best_policy = policy_net
-            best_target = target_net
-            best_optimizer = optimizer
-            final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"best_model_stage{stage}", timestamp=False)
+            final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
 
         
         # Save periodic checkpoints
         if (i_episode + 1) % 500 == 0:
             plot_filename = training_manager.save_checkpoint_plots(i_episode, outdir)
             training_time = time.time() - logger.start_time
-            final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"checkpoint_model_stage{stage}")
+            final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"checkpoint_model_stage{stage}")
 
     final_training_time = time.time() - logger.start_time
-    if best_policy and best_optimizer and best_target:
-        final_model_path = checkpoint_manager.save_final_model(best_policy, best_target, best_optimizer, f"best_model_stage{stage}")
-
     reporter.write_header()
     reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)
     reporter.write_training_results(final_training_time, highest_reward, last_time_steps)
