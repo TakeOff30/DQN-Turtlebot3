@@ -46,10 +46,10 @@ class DQN(nn.Module):
 
     def __init__(self, inputs, outputs):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 32)
-        self.head = nn.Linear(32, outputs)
+        self.fc1 = nn.Linear(inputs, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.head = nn.Linear(128, outputs)
         
         # HE initialization
         nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
@@ -178,10 +178,10 @@ if __name__ == '__main__':
     running_step = rospy.get_param("/turtlebot3/running_step")
     resume_training = rospy.get_param("/turtlebot3/resume_from_checkpoint", False)
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
+    stage = rospy.get_param("/turtlebot3/stage")
     
     # Sends metrics to result_graph.py
-    result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)
-    # Sends metrics to result_action.py
+    result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)   # Sends metrics to result_action.py
     result_action_pub = rospy.Publisher('/get_action', Float32MultiArray, queue_size=10)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -199,6 +199,21 @@ if __name__ == '__main__':
     target_net = DQN(n_observations, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
+    
+    if resume_training:
+        checkpoint_path = os.path.join(model_path, checkpoint_file)
+        if not os.path.isfile(checkpoint_path):
+            rospy.logerr(f"Checkpoint file not found: {checkpoint_path}")
+            env.close()
+            exit(1)
+        
+        rospy.loginfo(f"Loading trained model from: {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
+        target_net.load_state_dict(policy_net.state_dict())
+        target_net.eval()
+        rospy.loginfo("Model loaded successfully!")
+        
 
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     memory = ReplayMemory(50000)
@@ -207,6 +222,8 @@ if __name__ == '__main__':
     start_episode = 0
     loss_values = []
     last_loss_value = None
+    last_rewards = deque([], maxlen=50)
+    max_avg_reward = 0
     
     checkpoint_manager = CheckpointManager(model_path)
     logger = TrainingLogger()
@@ -336,6 +353,7 @@ if __name__ == '__main__':
             else:
                 avg_max_q = 0.0
                 
+
         result_msg = Float32MultiArray()
         # Send loss if available, else omit
         if last_loss_value is not None:
@@ -346,15 +364,18 @@ if __name__ == '__main__':
         
         if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
+        last_rewards.append(cumulated_reward)
+        if len(last_rewards) == 50 and numpy.mean(last_rewards) > max_avg_reward:
+                final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"best_model_stage{stage}")
+
         
         # Save periodic checkpoints
         if (i_episode + 1) % 500 == 0:
             plot_filename = training_manager.save_checkpoint_plots(i_episode, outdir)
             training_time = time.time() - logger.start_time
-            final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer)
+            final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer, f"checkpoint_model_stage{stage}")
 
     final_training_time = time.time() - logger.start_time
-    final_model_path = checkpoint_manager.save_final_model(policy_net, target_net, optimizer)
     
     reporter.write_header()
     reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)

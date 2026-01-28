@@ -6,17 +6,13 @@ turtlebot3:
     launch_file_name: 'stage1_empty.launch' # Stage 1 world
     stage: 1
 
+    n_episodes: 100
+    succes_reward_threshold: 500
+
     # Environment parameters
     running_step: 0.02
     pos_step: 0.01
-    max_episode_steps: 200 # Shorter episodes for faster learning
-
-    # Robot control
-    # linear_forward_speed: 0.25
-    # linear_turn_speed: 0.1
-    # angular_speed: 1.5
-    # init_linear_forward_speed: 0.0
-    # init_linear_turn_speed: 0.0
+    max_episode_steps: 300
 
     # Observations (24 laser readings + 2 goal coordinates)
     new_ranges: 24 # Samples 24 laser readings from 360 total (every 15th reading)
@@ -26,34 +22,23 @@ turtlebot3:
     n_actions: 5
 
     # Collision detection
-    max_linear_aceleration: 1.5 # Relaxed for empty environment
+    max_linear_aceleration: 1.5
 
-    # Arena boundaries (3x3 meter bounded box)
-    arena_min_x: -1.5
-    arena_max_x: 1.5
-    arena_min_y: -1.5
-    arena_max_y: 1.5
+    arena_min_x: -2.0
+    arena_max_x: 2.0
+    arena_min_y: -2.0
+    arena_max_y: 2.0
 
     # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
     # Goals spawn within these boundaries to ensure they're accessible
-    safe_arena_min_x: -1.3
-    safe_arena_max_x: 1.3
-    safe_arena_min_y: -1.3
-    safe_arena_max_y: 1.3
-    min_spawn_distance: 1.0 # Minimum distance between robot and goal spawn
+    safe_arena_min_x: -1.0
+    safe_arena_max_x: 1.0
+    safe_arena_min_y: -1.0
+    safe_arena_max_y: 1.0
+    min_spawn_distance: 0.5 # Minimum distance between robot and goal spawn
     success_threshold: 0.25 # Distance to consider goal reached (meters)
-
-    # DQN parameters - Faster exploration
-    gamma: 0.95
-    epsilon_start: 0.99
-    epsilon_end: 0.05
-    epsilon_decay: 1000
-    n_episodes: 100
-    target_update: 1000
-    batch_size: 128
-    learning_rate: 0.0005
 
     # Checkpoint and Mode Settings
     load_pretrained_model: true # Load model weights from checkpoint (starts training from episode 0)
-    checkpoint_file: 'final_model.pth' # File to load from trained_models directory
+    best_model: 'best_model_stage1.pth' # File to load from trained_models directory
     inference_mode: true # Set to true for evaluation only (no training)

@@ -11,7 +11,7 @@ class CheckpointManager:
         if not os.path.exists(model_path):
             os.makedirs(model_path)
     
-    def save_final_model(self, policy_net, target_net, optimizer):
+    def save_final_model(self, policy_net, target_net, optimizer, filename="final_model"):
         """Save final model at end of training with timestamp.        """
         final_model_data = {
             'policy_net_state_dict': policy_net.state_dict(),
@@ -20,7 +20,7 @@ class CheckpointManager:
         }
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        final_filename = f"final_model_{timestamp}.pth"
+        final_filename = f"{filename}_{timestamp}.pth"
         final_path = os.path.join(self.model_path, final_filename)
         torch.save(final_model_data, final_path)
         return final_path

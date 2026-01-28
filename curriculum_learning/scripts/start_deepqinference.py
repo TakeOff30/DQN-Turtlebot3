@@ -29,17 +29,27 @@ class DQN(nn.Module):
     def __init__(self, inputs, outputs):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(inputs, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.head = nn.Linear(64, outputs)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 32)
+        self.head = nn.Linear(32, outputs)
         
+        # HE initialization
+        nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
+        nn.init.kaiming_uniform_(self.fc2.weight, nonlinearity='leaky_relu')
+        nn.init.kaiming_uniform_(self.fc3.weight, nonlinearity='leaky_relu')
+        nn.init.xavier_uniform_(self.head.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)
+        nn.init.zeros_(self.head.bias)
+        
+                
     def forward(self, x):
-        if not x.is_cuda and device.type == 'cuda':
-            x = x.to(device)
-            
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
+        x = x.to(device)
+
+        x = F.leaky_relu(self.fc1(x))
+        x = F.leaky_relu(self.fc2(x))
+        x = F.leaky_relu(self.fc3(x))
         return self.head(x)
 
 
@@ -62,11 +72,12 @@ if __name__ == '__main__':
     model_path = pkg_path + '/trained_models'
 
     # Load inference parameters
-    checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "checkpoint_best.pth")
+    checkpoint_file = rospy.get_param("/turtlebot3/best_model", "best_model.pth")
     n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 10)
+    success_reward_threshold = rospy.get_param("/turtlebot3/success_reward_threshold", 500)
     
     rospy.loginfo("=== Inference Settings ===")
-    rospy.loginfo("Checkpoint file: %s" % checkpoint_file)
+    rospy.loginfo("Model used: %s" % checkpoint_file)
     rospy.loginfo("Number of evaluation episodes: %d" % n_eval_episodes)
     rospy.loginfo("==========================")
 
@@ -148,7 +159,7 @@ if __name__ == '__main__':
                 eval_distances.append(episode_distance)
                 eval_steps.append(t + 1)
                 
-                if cumulated_reward > 100:  # Success threshold
+                if cumulated_reward > success_reward_threshold:  # Success threshold
                     eval_successes += 1
                     rospy.loginfo("✓ Goal reached!")
                 else:
