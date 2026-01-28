@@ -44,7 +44,7 @@ class ReplayMemory(object):
 
 class DQN(nn.Module):
 
-    def __init__(self, inputs, outputs):
+    def __init__(self, inputs, outputs, resume_training=False):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(inputs, 512)
         self.fc2 = nn.Linear(512, 256)
@@ -52,14 +52,15 @@ class DQN(nn.Module):
         self.head = nn.Linear(128, outputs)
         
         # HE initialization
-        nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
-        nn.init.kaiming_uniform_(self.fc2.weight, nonlinearity='leaky_relu')
-        nn.init.kaiming_uniform_(self.fc3.weight, nonlinearity='leaky_relu')
-        nn.init.xavier_uniform_(self.head.weight)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
-        nn.init.zeros_(self.head.bias)
+        if resume_training == False:
+            nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
+            nn.init.kaiming_uniform_(self.fc2.weight, nonlinearity='leaky_relu')
+            nn.init.kaiming_uniform_(self.fc3.weight, nonlinearity='leaky_relu')
+            nn.init.xavier_uniform_(self.head.weight)
+            nn.init.zeros_(self.fc1.bias)
+            nn.init.zeros_(self.fc2.bias)
+            nn.init.zeros_(self.fc3.bias)
+            nn.init.zeros_(self.head.bias)
         
                 
     def forward(self, x):
@@ -195,8 +196,8 @@ if __name__ == '__main__':
          f"Observation {initial_obs} outside declared space {env.observation_space}"
     n_observations = len(initial_obs)
 
-    policy_net = DQN(n_observations, n_actions).to(device)
-    target_net = DQN(n_observations, n_actions).to(device)
+    policy_net = DQN(n_observations, n_actions, resume_training=resume_training).to(device)
+    target_net = DQN(n_observations, n_actions, resume_training=resume_training).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
         
