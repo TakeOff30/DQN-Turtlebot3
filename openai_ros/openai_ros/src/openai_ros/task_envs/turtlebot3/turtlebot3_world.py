@@ -441,7 +441,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         # Living penalty to encourage faster completion
-        time_penalty = -0.15
+        time_penalty = -0.05
         # Se siamo vicini al goal (es. < 0.5m), riduciamo la paura del muro.
         # Creiamo un fattore di scala che va da 0.2 (molto coraggioso) a 1.0 (prudenza standard)
         # man mano che ci allontaniamo dal goal.

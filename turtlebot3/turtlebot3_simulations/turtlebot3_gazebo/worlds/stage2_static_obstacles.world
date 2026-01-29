@@ -159,19 +159,19 @@
     <!-- Obstacle 1: Red box in upper-right quadrant -->
     <model name="obstacle_1">
       <static>true</static>
-      <pose>1.0 1.0 0.3 0 0 0</pose>
+      <pose>0.8 0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -185,19 +185,19 @@
     <!-- Obstacle 2: Blue box in lower-left quadrant -->
     <model name="obstacle_2">
       <static>true</static>
-      <pose>-1.0 -1.0 0.3 0 0 0</pose>
+      <pose>-0.8 -0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -211,19 +211,19 @@
     <!-- Obstacle 3: Green box in lower-right area -->
     <model name="obstacle_3">
       <static>true</static>
-      <pose>1.0 -1.0 0.3 0 0 0</pose>
+      <pose>0.8 -0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -234,21 +234,21 @@
       </link>
     </model>
 
-    <model name="obstacle_3">
+    <model name="obstacle_4">
       <static>true</static>
-      <pose>-1.0 1.0 0.3 0 0 0</pose>
+      <pose>-0.8 0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>

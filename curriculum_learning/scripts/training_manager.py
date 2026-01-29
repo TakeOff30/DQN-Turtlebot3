@@ -1,5 +1,5 @@
 class TrainingManager:
-    def __init__(self, checkpoint_manager, reporter):
+    def __init__(self, checkpoint_manager, reporter, plots_dir):
         self.max_episode_duration = 0
         self.max_distance_traveled = 0.0
         self.episode_rewards_history = []
@@ -16,6 +16,7 @@ class TrainingManager:
         }
         self.checkpoint_manager = checkpoint_manager
         self.reporter = reporter
+        self.plots_dir = plots_dir
         
     def accumulate_breakdown(self, reward):
         if reward > 100:
@@ -35,7 +36,7 @@ class TrainingManager:
         self.reward_breakdown_history.append(self.episode_breakdown)
         self.episode_epsilon_history.append(current_eps)
     
-    def save_checkpoint_plots(self, i_episode, outdir):
+    def save_checkpoint_plots(self, i_episode):
         breakdown_dict = {}
         if self.reward_breakdown_history:
             # Initialize with keys from first episode
@@ -43,7 +44,7 @@ class TrainingManager:
                 breakdown_dict[key] = [ep[key] for ep in self.reward_breakdown_history]
         
         # Generate and save plot
-        plot_filename = self.reporter.generate_plot(i_episode + 1, outdir, self.episode_rewards_history,
+        plot_filename = self.reporter.generate_plot(i_episode + 1, self.plots_dir, self.episode_rewards_history,
                                                 self.episode_durations_history, self.episode_distances_history,
                                                 self.episode_epsilon_history, breakdown_dict)
         

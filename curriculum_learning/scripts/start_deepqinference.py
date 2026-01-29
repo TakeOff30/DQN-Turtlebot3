@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     # Load inference parameters
     checkpoint_file = rospy.get_param("/turtlebot3/best_model", "best_model.pth")
-    n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 10)
+    n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 100)
     success_reward_threshold = rospy.get_param("/turtlebot3/success_reward_threshold", 500)
     
     rospy.loginfo("=== Inference Settings ===")

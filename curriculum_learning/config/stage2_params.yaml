@@ -20,7 +20,7 @@ turtlebot3:
 
     # Observations
     new_ranges: 24
-    min_range: 0.15 # Tighter collision threshold
+    min_range: 0.19 # Tighter collision threshold
     max_laser_value: 3.5
     min_laser_value: 0.0
     n_actions: 5
@@ -36,15 +36,11 @@ turtlebot3:
 
     goal_positions:
         # Safe goal marker positions (x, y) in the 4x4m arena, avoiding all obstacles
-        - [-1.5, -1.5]
         - [-1.5, 0]
-        - [-1.5, 1.5]
         - [0, -1.5]
         - [0, 0]
         - [0, 1.5]
-        - [1.5, -1.5]
         - [1.5, 0]
-        - [1.5, 1.5]
         - [-1.5, 1]
         - [1, 1.5]
         - [-1.5, -1]
@@ -76,15 +72,15 @@ turtlebot3:
     success_threshold: 0.25 # Distance to consider goal reached (meters)
     # DQN parameters - Transfer learning from stage 1
     gamma: 0.995
-    epsilon_start: 0.7 # Start with some exploitation from stage 1
+    epsilon_start: 0.95 # Start with some exploitation from stage 1
     epsilon_end: 0.001
     epsilon_decay: 15000
-    n_episodes: 1200
+    n_episodes: 2000
     target_update: 150
     batch_size: 64
-    learning_rate: 0.0007 # Lower learning rate for fine-tuning
+    learning_rate: 0.001 # Lower learning rate for fine-tuning
 
     # Checkpoint and Mode Settings - Load from stage 1
     load_pretrained_model: true # Load model weights from stage 1
-    checkpoint_file: 'best_model_stage1_last.pth' # Load from stage 1 or "checkpoint_ep1000.pth"
+    checkpoint_file: 'final_model_20260128_030639.pth' # Load from stage 1 or "checkpoint_ep1000.pth"
     inference_mode: false # Set to true for evaluation only (no training)

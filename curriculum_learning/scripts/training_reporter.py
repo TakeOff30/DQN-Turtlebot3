@@ -5,9 +5,9 @@ from datetime import datetime
 from utils import plot_training_metrics
 
 class TrainingReporter:
-    def __init__(self, reports_dir, model_path):
+    def __init__(self, model_path):
         self.model_path = model_path
-        self.report_path = f"{reports_dir}/training_report.txt"
+        self.report_path = f"{model_path}/training_report.txt"
     
     def generate_plot(self, episode, outdir, episode_rewards_history, 
                      episode_durations_history, episode_distances_history,

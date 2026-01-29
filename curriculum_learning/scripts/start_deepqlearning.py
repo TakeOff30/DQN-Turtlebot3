@@ -154,15 +154,11 @@ if __name__ == '__main__':
     pkg_path = rospack.get_path('curriculum_learning')
     outdir = pkg_path + '/training_results'
 
-    # Create directories for outputs
-    model_path = pkg_path + '/trained_models'
-    reports_dir = pkg_path + '/training_reports'
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-    if not os.path.exists(reports_dir):
-        os.makedirs(reports_dir)
+    trained_models_root = os.path.join(pkg_path, 'trained_models')
+    os.makedirs(trained_models_root, exist_ok=True)
 
 
+    
     last_time_steps = numpy.ndarray(0)
 
     # Loads parameters from the ROS param server
@@ -180,6 +176,26 @@ if __name__ == '__main__':
     resume_training = rospy.get_param("/turtlebot3/load_pretrained_model", False)
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
     stage = rospy.get_param("/turtlebot3/stage")
+    
+    
+    # Create directories for outputs
+    #model_path = pkg_path +f'/stage_{stage}_{ time.strftime("%Y%m%d-%H%M%S")}'
+    #reports_dir = pkg_path + '/training_reports'
+    # if not os.path.exists(model_path):
+    #     os.makedirs(model_path)
+    # if not os.path.exists(reports_dir):
+    #     os.makedirs(reports_dir)
+    
+    run_id = f"stage_{stage}_{time.strftime('%Y%m%d-%H%M%S')}"
+    run_dir = os.path.join(trained_models_root, run_id)
+
+    models_dir = os.path.join(run_dir, 'models')
+    plots_dir = os.path.join(run_dir, 'plots')
+    report_dir = os.path.join(run_dir, 'report')
+
+    os.makedirs(models_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    os.makedirs(report_dir, exist_ok=True)
     
     # Sends metrics to result_graph.py
     result_pub = rospy.Publisher('/result', Float32MultiArray, queue_size=10)   # Sends metrics to result_action.py
@@ -211,13 +227,14 @@ if __name__ == '__main__':
     last_rewards = deque([], maxlen=50)
     max_avg_reward = 0
     
-    checkpoint_manager = CheckpointManager(model_path)
+    checkpoint_manager = CheckpointManager(models_dir)
     logger = TrainingLogger()
-    reporter = TrainingReporter(reports_dir, model_path)
-    training_manager = TrainingManager(checkpoint_manager, reporter)
+    reporter = TrainingReporter( report_dir)
+    training_manager = TrainingManager(checkpoint_manager, reporter, plots_dir)
     
     if resume_training:
-        checkpoint_path = os.path.join(model_path, checkpoint_file)
+        #possible problem with the new model_path 
+        checkpoint_path = os.path.join(trained_models_root, checkpoint_file)
         if not os.path.isfile(checkpoint_path):
             rospy.logerr(f"Checkpoint file not found: {checkpoint_path}")
             env.close()
@@ -374,7 +391,7 @@ if __name__ == '__main__':
         
         # Save periodic checkpoints
         if (i_episode + 1) % 500 == 0:
-            plot_filename = training_manager.save_checkpoint_plots(i_episode, outdir)
+            plot_filename = training_manager.save_checkpoint_plots(i_episode)
             training_time = time.time() - logger.start_time
             final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"checkpoint_model_stage{stage}")
 
