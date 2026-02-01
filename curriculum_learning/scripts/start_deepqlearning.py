@@ -229,8 +229,12 @@ if __name__ == '__main__':
     
     checkpoint_manager = CheckpointManager(models_dir)
     logger = TrainingLogger()
-    reporter = TrainingReporter( report_dir)
+    reporter = TrainingReporter(report_dir)
     training_manager = TrainingManager(checkpoint_manager, reporter, plots_dir)
+    
+    reporter.write_header()
+    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)
+
     
     if resume_training:
         #possible problem with the new model_path 
@@ -396,8 +400,7 @@ if __name__ == '__main__':
             final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"checkpoint_model_stage{stage}")
 
     final_training_time = time.time() - logger.start_time
-    reporter.write_header()
-    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)
+    
     reporter.write_training_results(final_training_time, highest_reward, last_time_steps)
     reporter.write_episode_statistics(training_manager.episode_rewards_history,
                                       training_manager.episode_durations_history,
