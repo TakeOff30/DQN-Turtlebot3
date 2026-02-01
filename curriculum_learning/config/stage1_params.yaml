@@ -38,15 +38,15 @@ turtlebot3:
 
     # DQN parameters - Faster exploration
     gamma: 0.99
-    epsilon_start: 0.99
+    epsilon_start: 0.5
     epsilon_end: 0.01
-    epsilon_decay: 15000
+    epsilon_decay: 10000
     n_episodes: 3000
     target_update: 100
     batch_size: 64
-    learning_rate: 0.0007
+    learning_rate: 0.0005
 
     # Checkpoint and Mode Settings
-    load_pretrained_model: false # Load model weights from checkpoint (starts training from episode 0)
-    checkpoint_file: 'checkpoint_latest.pth' # File to load from trained_models directory
+    load_pretrained_model: true # Load model weights from checkpoint (starts training from episode 0)
+    checkpoint_file: 'best_model_stage1_last.pth' # File to load from trained_models directory
     inference_mode: false # Set to true for evaluation only (no training)

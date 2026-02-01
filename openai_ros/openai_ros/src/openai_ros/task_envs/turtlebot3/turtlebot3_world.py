@@ -444,7 +444,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         time_penalty = -0.5
         
         # 5. Penalty on high angular velocity to prevent from unnecessary turns
-        turn_penalty = 0.5 * math.pow(self.angular_speed, 2)
+        turn_penalty = - 0.5 * math.pow(self.angular_speed, 2)
         print("TURN PENALTY: ", turn_penalty)
         
         # Reduce penalty if the marker is close
