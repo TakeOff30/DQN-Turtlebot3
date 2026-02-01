@@ -45,8 +45,8 @@ class Window(QMainWindow):
         self.rewards = []
         self.avg_rewards = []
         self.count = 1
-        self.losses = []
-        self.loss_ep = []
+        self.epsilons = []
+        self.epsilon_ep = []
 
         self.plot()
 
@@ -69,10 +69,10 @@ class Window(QMainWindow):
         self.avg_rewards.append(avg)
         # -----------------------------------------------
 
-        # If loss is provided, append it
+        # If epsilon is provided, append it
         if len(msg.data) > 2:
-            self.losses.append(msg.data[2])
-            self.loss_ep.append(self.count-1)
+            self.epsilons.append(msg.data[2])
+            self.epsilon_ep.append(self.count-1)
 
     def plot(self):
         self.qValuePlt = pyqtgraph.PlotWidget(self, title='Average max Q-value')
@@ -81,8 +81,8 @@ class Window(QMainWindow):
         self.rewardsPlt = pyqtgraph.PlotWidget(self, title='Total reward')
         self.rewardsPlt.setGeometry(0, 10, 600, 150)
 
-        self.lossPlt = pyqtgraph.PlotWidget(self, title='Loss')
-        self.lossPlt.setGeometry(0, 170, 600, 140)
+        self.epsilonPlt = pyqtgraph.PlotWidget(self, title='Epsilon Decay')
+        self.epsilonPlt.setGeometry(0, 170, 600, 140)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
@@ -93,15 +93,15 @@ class Window(QMainWindow):
     def update(self):
         self.rewardsPlt.showGrid(x=True, y=True)
         self.qValuePlt.showGrid(x=True, y=True)
-        self.lossPlt.showGrid(x=True, y=True)
+        self.epsilonPlt.showGrid(x=True, y=True)
 
         self.rewardsPlt.plot(self.ep, self.rewards, pen=(255, 0, 0),  clear=True)
         self.rewardsPlt.plot(self.ep, self.avg_rewards, pen=(0, 255, 255), width=2)
 
         self.qValuePlt.plot(self.ep, self.data_list, pen=(0, 255, 0), clear=True)
 
-        if self.losses:
-            self.lossPlt.plot(self.loss_ep, self.losses, pen=(255, 165, 0), clear=True)
+        if self.epsilons:
+            self.epsilonPlt.plot(self.epsilon_ep, self.epsilons, pen=(255, 165, 0), clear=True)
 
     def closeEvent(self, event):
         rospy.signal_shutdown("Window closed")

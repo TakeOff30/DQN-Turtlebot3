@@ -31,22 +31,9 @@ class Ros1Subscriber:
     def get_array_callback(self, msg):
         data = list(msg.data)
 
-        self.qt_thread.signal_action0.emit(0)
-        self.qt_thread.signal_action1.emit(0)
-        self.qt_thread.signal_action2.emit(0)
-        self.qt_thread.signal_action3.emit(0)
-        self.qt_thread.signal_action4.emit(0)
-
-        if data[0] == 0:
-            self.qt_thread.signal_action0.emit(100)
-        elif data[0] == 1:
-            self.qt_thread.signal_action1.emit(100)
-        elif data[0] == 2:
-            self.qt_thread.signal_action2.emit(100)
-        elif data[0] == 3:
-            self.qt_thread.signal_action3.emit(100)
-        elif data[0] == 4:
-            self.qt_thread.signal_action4.emit(100)
+        # Emit the action index to update the bar plot
+        action_idx = int(data[0])
+        self.qt_thread.signal_action_selected.emit(action_idx)
 
         if len(data) >= 2:
             self.qt_thread.signal_total_reward.emit(str(round(data[-2], 2)))
@@ -55,11 +42,7 @@ class Ros1Subscriber:
 
 class Thread(QThread):
 
-    signal_action0 = pyqtSignal(int)
-    signal_action1 = pyqtSignal(int)
-    signal_action2 = pyqtSignal(int)
-    signal_action3 = pyqtSignal(int)
-    signal_action4 = pyqtSignal(int)
+    signal_action_selected = pyqtSignal(int)
     signal_total_reward = pyqtSignal(str)
     signal_reward = pyqtSignal(str)
 
@@ -80,30 +63,31 @@ class Form(QWidget):
 
         layout = QGridLayout()
 
-        self.pgsb1 = QProgressBar()
-        self.pgsb1.setOrientation(Qt.Vertical)
-        self.pgsb1.setValue(0)
-        self.pgsb1.setRange(0, 100)
+        # Initialize action counters
+        self.action_counts = [0, 0, 0, 0, 0]  # 5 actions (adjust if different)
+        self.total_actions = 0
 
-        self.pgsb2 = QProgressBar()
-        self.pgsb2.setOrientation(Qt.Vertical)
-        self.pgsb2.setValue(0)
-        self.pgsb2.setRange(0, 100)
-
-        self.pgsb3 = QProgressBar()
-        self.pgsb3.setOrientation(Qt.Vertical)
-        self.pgsb3.setValue(0)
-        self.pgsb3.setRange(0, 100)
-
-        self.pgsb4 = QProgressBar()
-        self.pgsb4.setOrientation(Qt.Vertical)
-        self.pgsb4.setValue(0)
-        self.pgsb4.setRange(0, 100)
-
-        self.pgsb5 = QProgressBar()
-        self.pgsb5.setOrientation(Qt.Vertical)
-        self.pgsb5.setValue(0)
-        self.pgsb5.setRange(0, 100)
+        # Create bar plot for action distribution
+        self.action_plot = pyqtgraph.PlotWidget(title='Action Distribution (%)')
+        self.action_plot.setMinimumHeight(300)
+        self.action_plot.setYRange(0, 100)
+        self.action_plot.showGrid(x=True, y=True)
+        self.action_plot.setLabel('left', 'Percentage (%)')
+        self.action_plot.setLabel('bottom', 'Action')
+        
+        # Configure x-axis with action labels including angular velocities
+        action_labels = [
+            'Action 0\n(+1.5 rad/s)', 
+            'Action 1\n(+0.75 rad/s)', 
+            'Action 2\n(0.0 rad/s)', 
+            'Action 3\n(-0.75 rad/s)', 
+            'Action 4\n(-1.5 rad/s)'
+        ]
+        x_dict = dict(enumerate(action_labels))
+        ax = self.action_plot.getAxis('bottom')
+        ax.setTicks([list(x_dict.items())])
+        
+        self.bar_graph = None
 
         self.label_total_reward = QLabel('Total reward')
         self.edit_total_reward = QLineEdit('')
@@ -115,34 +99,38 @@ class Form(QWidget):
         self.edit_reward.setDisabled(True)
         self.edit_reward.setFixedWidth(100)
 
-        self.label_left = QLabel('Left')
-        self.label_front = QLabel('Front')
-        self.label_right = QLabel('Right')
-
         layout.addWidget(self.label_total_reward, 0, 0)
         layout.addWidget(self.edit_total_reward, 1, 0)
         layout.addWidget(self.label_reward, 2, 0)
         layout.addWidget(self.edit_reward, 3, 0)
-
-        layout.addWidget(self.pgsb1, 0, 4, 4, 1)
-        layout.addWidget(self.pgsb2, 0, 5, 4, 1)
-        layout.addWidget(self.pgsb3, 0, 6, 4, 1)
-        layout.addWidget(self.pgsb4, 0, 7, 4, 1)
-        layout.addWidget(self.pgsb5, 0, 8, 4, 1)
-
-        layout.addWidget(self.label_left, 4, 4)
-        layout.addWidget(self.label_front, 4, 6)
-        layout.addWidget(self.label_right, 4, 8)
+        layout.addWidget(self.action_plot, 0, 1, 4, 1)
 
         self.setLayout(layout)
 
-        qt_thread.signal_action0.connect(self.pgsb1.setValue)
-        qt_thread.signal_action1.connect(self.pgsb2.setValue)
-        qt_thread.signal_action2.connect(self.pgsb3.setValue)
-        qt_thread.signal_action3.connect(self.pgsb4.setValue)
-        qt_thread.signal_action4.connect(self.pgsb5.setValue)
+        qt_thread.signal_action_selected.connect(self.update_action_distribution)
         qt_thread.signal_total_reward.connect(self.edit_total_reward.setText)
         qt_thread.signal_reward.connect(self.edit_reward.setText)
+
+    def update_action_distribution(self, action_idx):
+        """Update action counts and refresh the bar plot"""
+        if 0 <= action_idx < len(self.action_counts):
+            self.action_counts[action_idx] += 1
+            self.total_actions += 1
+            
+            # Calculate percentages
+            percentages = [(count / self.total_actions * 100) if self.total_actions > 0 else 0 
+                          for count in self.action_counts]
+            
+            # Update bar plot
+            x = list(range(len(self.action_counts)))
+            self.action_plot.clear()
+            self.bar_graph = pyqtgraph.BarGraphItem(
+                x=x, 
+                height=percentages, 
+                width=0.6, 
+                brush='b'
+            )
+            self.action_plot.addItem(self.bar_graph)
 
     def closeEvent(self, event):
         rospy.signal_shutdown("SIGINT")

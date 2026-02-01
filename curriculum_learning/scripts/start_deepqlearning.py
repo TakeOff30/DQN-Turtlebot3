@@ -237,30 +237,21 @@ if __name__ == '__main__':
 
     
     if resume_training:
-        #possible problem with the new model_path 
         checkpoint_path = os.path.join(trained_models_root, checkpoint_file)
         if not os.path.isfile(checkpoint_path):
             rospy.logerr(f"Checkpoint file not found: {checkpoint_path}")
             env.close()
             exit(1)
         
-        rospy.loginfo(f"Loading trained model from: {checkpoint_path}")
+        rospy.logwarn(f"Loading trained model from: {checkpoint_path}")
         max_avg_reward = checkpoint_manager.load_checkpoint(checkpoint_path, policy_net, target_net)
-        # checkpoint = torch.load(checkpoint_path, map_location=device)
-        # max_avg_reward = checkpoint['max_avg_reward']
-        # policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-        # target_net.load_state_dict(policy_net.state_dict())
-        # target_net.eval()
-        rospy.loginfo("Model loaded successfully!")
     
     # Warm-start replay memory before training
     MIN_REPLAY_SIZE = batch_size * 10
-    rospy.loginfo("=== Warming up replay memory ===")
-    rospy.loginfo(f"Target: {MIN_REPLAY_SIZE} experiences")
+    rospy.logwarn("=== START WARM UP ===")
+    
     warm_start_obs = env.reset()
     warm_start_state = torch.tensor(warm_start_obs, device=device, dtype=torch.float)
-
-    rospy.logwarn("=== START WARM UP ===")
 
     while len(memory) < MIN_REPLAY_SIZE:
         action = torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
@@ -378,11 +369,8 @@ if __name__ == '__main__':
                 
 
         result_msg = Float32MultiArray()
-        # Send loss if available, else omit
-        if last_loss_value is not None:
-            result_msg.data = [float(avg_max_q), float(cumulated_reward), float(last_loss_value)]
-        else:
-            result_msg.data = [float(avg_max_q), float(cumulated_reward)]
+        # Send epsilon value
+        result_msg.data = [float(avg_max_q), float(cumulated_reward), float(current_eps)]
         result_pub.publish(result_msg)
         
         if highest_reward < cumulated_reward:
