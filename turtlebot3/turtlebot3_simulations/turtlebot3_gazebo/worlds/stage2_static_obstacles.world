@@ -159,19 +159,19 @@
     <!-- Obstacle 1: Red box in upper-right quadrant -->
     <model name="obstacle_1">
       <static>true</static>
-      <pose>1.0 1.0 0.3 0 0 0</pose>
+      <pose>0.8 0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -185,19 +185,19 @@
     <!-- Obstacle 2: Blue box in lower-left quadrant -->
     <model name="obstacle_2">
       <static>true</static>
-      <pose>-1.0 -1.0 0.3 0 0 0</pose>
+      <pose>-0.8 -0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -211,19 +211,44 @@
     <!-- Obstacle 3: Green box in lower-right area -->
     <model name="obstacle_3">
       <static>true</static>
-      <pose>1.0 -1.0 0.3 0 0 0</pose>
+      <pose>0.8 -0.8 0.3 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.5 0.5 0.6</size>
+              <size>0.3 0.3 0.6</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.5 0.5 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="obstacle_4">
+      <static>true</static>
+      <pose>-0.8 0.8 0.3 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.6</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 0.3 0.6</size>
             </box>
           </geometry>
           <material>
@@ -236,14 +261,33 @@
 
     <!-- Goal Marker -->
     <model name="goal_marker">
-      <static>true</static>
-      <pose>-0.5 0.5 0.1 0 0 0</pose>
+      <static>false</static>
+      <pose>1.5 1.5 0.1 0 0 0</pose>
       <link name="link">
+        <gravity>false</gravity>
+        <kinematic>true</kinematic>  
+          <!-- Collision geometry - made passthrough for sensors -->
+        <collision name="collision">
+          <laser_retro>0</laser_retro>
+          <max_contacts>0</max_contacts>
+          <geometry>
+            <cylinder>
+              <radius>0.1</radius>
+              <length>0.1</length>
+            </cylinder>
+          </geometry>
+          <surface>
+            <contact>
+              <collide_without_contact>true</collide_without_contact>
+            </contact>
+          </surface>
+        </collision>
+
         <visual name="visual">
           <geometry>
             <cylinder>
-              <radius>0.25</radius>
-              <length>0.2</length>
+              <radius>0.1</radius>
+              <length>0.1</length>
             </cylinder>
           </geometry>
           <material>

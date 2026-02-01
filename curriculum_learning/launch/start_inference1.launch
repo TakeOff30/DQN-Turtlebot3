@@ -3,7 +3,7 @@
     <!-- Stage 1: Empty environment training -->
     
     <!-- Load stage-specific parameters -->
-    <rosparam command="load" file="$(find curriculum_learning)/config/inference_params.yaml" />
+    <rosparam command="load" file="$(find curriculum_learning)/config/inference1_params.yaml" />
     
     <!-- Start training script -->
     <node pkg="curriculum_learning" type="start_deepqinference.py" name="turtlebot3_inference" output="screen"/>

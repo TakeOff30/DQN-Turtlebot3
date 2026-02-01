@@ -1,0 +1,10 @@
+TRAINING CONFIGURATION
+--------------------------------------------------------------------------------
+Number of Episodes: 3000
+Gamma: 0.99
+Epsilon Start: 0.99
+Epsilon End: 0.01
+Epsilon Decay: 15000
+Batch Size: 64
+Target Update Frequency: 100
+
