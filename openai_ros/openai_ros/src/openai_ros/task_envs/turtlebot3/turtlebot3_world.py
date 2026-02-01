@@ -246,20 +246,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         goal_angle = math.atan2(dy, dx) - self.robot_yaw
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
         
-        # # --- NORMALIZATION FIX ---
-        # # Normalize Laser readings [0, max_laser] -> [0, 1]
-        # laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in ranges]
+        # Apply normalization
+        laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
+        dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
+        angle_norm = goal_angle / math.pi
         
-        # # Normalize Distance (Approximate max diagonal of 3x3 arena is ~4.3m)
-        # dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
+        # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
+        full_observations = laser_norm + [dist_norm, angle_norm]
         
-        # # Normalize Angle [-pi, pi] -> [-1, 1]
-        # angle_norm = goal_angle / math.pi
-        
-        # # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
-        # full_observations = laser_norm + [dist_norm, angle_norm]
-        
-        full_observations = laser_ranges + [distance_to_goal, goal_angle]
+        # full_observations = laser_ranges + [distance_to_goal, goal_angle]
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
@@ -410,6 +405,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 
         return final_ranges, final_angles
     
+    def _compute_distance_reward(self, current_distance):
+        # 1. Positive reward if moving towards goal
+        if self.previous_distance_to_goal is not None:
+            distance_delta = self.previous_distance_to_goal - current_distance
+            distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
+            distance_reward = distance_delta * 20.0 * distance_scaling_factor
+        else:
+            distance_reward = 0.0
+            
+        return distance_reward
+    
     def _compute_reward(self, observations, done):
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
@@ -419,14 +425,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Normalize angle to [-pi, pi]
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
 
-        # 1. Positive reward if moving towards goal
-        if self.previous_distance_to_goal is not None:
-            distance_delta = self.previous_distance_to_goal - current_distance
-            distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
-            distance_reward = distance_delta * 20.0 * distance_scaling_factor
-        else:
-            distance_reward = 0.0
-        
+        distance_reward = self._compute_distance_reward(current_distance)
         self.previous_distance_to_goal = current_distance
         print("DISTANCE REWARD: ", distance_reward)
     
@@ -438,22 +437,22 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # 3. Obstacle Penalty (using our new weighted function)
         laser_scan = self.get_laser_scan() # to be sure to Get latest laser scan 
         front_ranges, front_angles = self._compute_laser_scans(laser_scan)
-        
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
-        # Living penalty to encourage faster completion
-        time_penalty = -0.15
-        # Se siamo vicini al goal (es. < 0.5m), riduciamo la paura del muro.
-        # Creiamo un fattore di scala che va da 0.2 (molto coraggioso) a 1.0 (prudenza standard)
-        # man mano che ci allontaniamo dal goal.
         
+        # Living penalty to encourage faster completion
+        time_penalty = -0.5
+        
+        # turn_penalty = c * (vel_ang)^2
+        
+        # Reduce penalty if the marker is close
         courage_zone = 0.5 # threshold distance for reducing penalty
         if current_distance < courage_zone:
-            # reduce obstacle penalty if near goal
             penalty_scale = max(0.2, current_distance / courage_zone)
             obstacle_penalty *= penalty_scale
             print(f"COURAGE MODE ACTIVE: Penalty scaled by {penalty_scale:.2f}")
 
         print("OBSTACLE PENALTY: ", obstacle_penalty)
+        
         # 4. Total step reward
         reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
         # reward = yaw_reward + obstacle_penalty
