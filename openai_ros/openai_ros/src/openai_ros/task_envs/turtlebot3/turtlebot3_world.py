@@ -67,6 +67,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.angular_velocities = rospy.get_param('/turtlebot3/angular_velocities')
         self.init_linear_forward_speed = rospy.get_param('/turtlebot3/init_linear_forward_speed')
         self.init_linear_turn_speed = rospy.get_param('/turtlebot3/init_linear_turn_speed')
+        self.angular_speed = 0
 
         self.new_ranges = rospy.get_param('/turtlebot3/new_ranges')
         self.min_range = rospy.get_param('/turtlebot3/min_range')
@@ -103,7 +104,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         total_laser_readings = len(laser_scan.ranges)
         num_laser_readings = int(total_laser_readings / self.new_ranges)
-        
+    
         rospy.loginfo(f"Laser readings: {total_laser_readings} total, sampling every {self.new_ranges}th = {num_laser_readings} readings")
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
         num_laser_readings = len(laser_ranges)
@@ -218,12 +219,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         :param action: The action integer that set s what movement to do next.
         """
         
-        angular_speed = self.angular_velocities[action]
+        self.angular_speed = self.angular_velocities[action]
         linear_speed = self.linear_forward_speed
-        rospy.logwarn(f"ANGULAR VELOCITY: {angular_speed}")
+        rospy.logwarn(f"ANGULAR VELOCITY: {self.angular_speed}")
         
         # We tell TurtleBot2 the linear and angular speed to set to execute
-        self.move_base(linear_speed, angular_speed, epsilon=0.05, update_rate=10)
+        self.move_base(linear_speed, self.angular_speed, epsilon=0.05, update_rate=10)
         
         # Increment episode step counter
         self.current_episode_step += 1
@@ -439,10 +440,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         front_ranges, front_angles = self._compute_laser_scans(laser_scan)
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         
-        # Living penalty to encourage faster completion
+        # 4. Living penalty to encourage faster completion
         time_penalty = -0.5
         
-        # turn_penalty = c * (vel_ang)^2
+        # 5. Penalty on high angular velocity to prevent from unnecessary turns
+        turn_penalty = 0.5 * math.pow(self.angular_speed, 2)
+        print("TURN PENALTY: ", turn_penalty)
         
         # Reduce penalty if the marker is close
         courage_zone = 0.5 # threshold distance for reducing penalty
@@ -454,7 +457,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         print("OBSTACLE PENALTY: ", obstacle_penalty)
         
         # 4. Total step reward
-        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
+        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty + turn_penalty
         # reward = yaw_reward + obstacle_penalty
         # 5. Terminal Rewards (Overriding step rewards)
         if self._is_succeded():
