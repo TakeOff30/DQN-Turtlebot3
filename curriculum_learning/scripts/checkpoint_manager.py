@@ -11,7 +11,7 @@ class CheckpointManager:
         if not os.path.exists(model_path):
             os.makedirs(model_path)
     
-    def save_final_model(self, policy_net, max_avg_reward, filename="final_model", timestamp=True):
+    def save_final_model(self, policy_net, max_avg_reward, filename="model", timestamp=True):
         """Save final model at end of training with timestamp.        """
         final_model_data = {
             'policy_net_state_dict': policy_net.state_dict(),
@@ -41,5 +41,5 @@ class CheckpointManager:
 
         max_avg_reward = checkpoint.get("max_avg_reward", 0.0)
 
-        rospy.logerr("Checkpoint loaded successfully!")
+        rospy.logwarn("Checkpoint loaded successfully!")
         return max_avg_reward

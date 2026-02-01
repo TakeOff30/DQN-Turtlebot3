@@ -1,20 +1,20 @@
 EPISODE STATISTICS
 --------------------------------------------------------------------------------
 Reward Statistics:
-  Mean: -102.63
-  Std Dev: 47.67
-  Min: -311.95
-  Max: 163.97
+  Mean: -224.34
+  Std Dev: 82.06
+  Min: -584.51
+  Max: 353.18
 
 Duration Statistics:
-  Mean: 18.52 steps
-  Std Dev: 8.17 steps
-  Min: 7 steps
-  Max: 105 steps
+  Mean: 46.05 steps
+  Std Dev: 32.87 steps
+  Min: 18 steps
+  Max: 366 steps
 
 Distance Statistics:
-  Mean: 1.54 meters
-  Std Dev: 0.40 meters
-  Min: 0.48 meters
-  Max: 6.62 meters
+  Mean: 2.64 meters
+  Std Dev: 1.91 meters
+  Min: 0.95 meters
+  Max: 20.52 meters
 
