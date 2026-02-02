@@ -374,9 +374,15 @@ if __name__ == '__main__':
         if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
         last_rewards.append(cumulated_reward)
-        if len(last_rewards) == 50 and numpy.mean(last_rewards) > max_avg_reward:
-            best_policy = policy_net
-            final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
+        
+        # Save best model when we have at least 50 episodes and current average beats historical best
+        if len(last_rewards) == 50:
+            current_avg_reward = numpy.mean(last_rewards)
+            if current_avg_reward > max_avg_reward:
+                max_avg_reward = current_avg_reward
+                best_policy = policy_net
+                final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
+                rospy.loginfo(f"New best model saved! Avg reward: {max_avg_reward:.2f}")
 
         
         # Save periodic checkpoints
