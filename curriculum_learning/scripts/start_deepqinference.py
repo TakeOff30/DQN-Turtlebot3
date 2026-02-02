@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # Set the logging system
     rospack = rospkg.RosPack()
     pkg_path = rospack.get_path('curriculum_learning')
-    model_path = pkg_path + '/trained_models'
+    model_path = pkg_path + '/trained_models/stage_1_20260202-093057/models/'
 
     # Load inference parameters
     checkpoint_file = rospy.get_param("/turtlebot3/best_model", "best_model.pth")

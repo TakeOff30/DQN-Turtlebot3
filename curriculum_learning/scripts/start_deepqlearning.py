@@ -156,8 +156,6 @@ if __name__ == '__main__':
 
     trained_models_root = os.path.join(pkg_path, 'trained_models')
     os.makedirs(trained_models_root, exist_ok=True)
-
-
     
     last_time_steps = numpy.ndarray(0)
 
@@ -218,7 +216,7 @@ if __name__ == '__main__':
     target_net.eval()
         
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
-    memory = ReplayMemory(50000)
+    memory = ReplayMemory(10000)
     episode_durations = []
     steps_done = 0
     start_episode = 0
@@ -247,7 +245,7 @@ if __name__ == '__main__':
         max_avg_reward = checkpoint_manager.load_checkpoint(checkpoint_path, policy_net, target_net)
     
     # Warm-start replay memory before training
-    MIN_REPLAY_SIZE = batch_size * 10
+    MIN_REPLAY_SIZE = batch_size * 15
     rospy.logwarn("=== START WARM UP ===")
     
     warm_start_obs = env.reset()

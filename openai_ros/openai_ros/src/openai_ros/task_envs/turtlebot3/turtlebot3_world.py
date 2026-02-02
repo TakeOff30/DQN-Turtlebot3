@@ -97,6 +97,14 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Goal position - will be randomized in _init_env_variables
         self.goal_x = 0.0
         self.goal_y = 0.0
+        
+        # Reward parameters
+        self.distance_reward_multiplier = rospy.get_param('/turtlebot3/distance_reward_multiplier', 50.0)
+        self.turn_penalty_multiplier = rospy.get_param('/turtlebot3/turn_penalty_multiplier', 0.5)
+        self.time_penalty = rospy.get_param('/turtlebot3/time_penalty', 0) # given at each step
+        self.goal_reached_reward = rospy.get_param('/turtlebot3/goal_reached_reward', 300)
+        self.obstacle_hit_penalty = rospy.get_param('/turtlebot3/obstacle_hit_penalty', -100)
+        self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
 
         # # We create two arrays based on the binary values that will be assigned
         # # In the discretization method.
@@ -113,15 +121,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.max_goal_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
                                            (self.arena_max_y - self.arena_min_y)**2)
         
-        # Observation space: [laser_readings..., distance_to_goal, angle_to_goal]
+        # Observation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
         laser_high = numpy.full((num_laser_readings,), self.max_laser_value, dtype=numpy.float32)
         laser_low = numpy.full((num_laser_readings,), self.min_laser_value, dtype=numpy.float32)
         obs_high = numpy.concatenate([laser_high, 
-                                      numpy.array([self.max_goal_distance, math.pi], dtype=numpy.float32)])
+                                      numpy.array([self.max_goal_distance, 1.0, 1.0], dtype=numpy.float32)])
         obs_low = numpy.concatenate([laser_low, 
-                                     numpy.array([0.0, -math.pi], dtype=numpy.float32)])
+                                     numpy.array([0.0, -1.0, -1.0], dtype=numpy.float32)])
         
-        obs_dim = num_laser_readings + 2  # laser + [distance_to_goal, angle_to_goal]
+        obs_dim = num_laser_readings + 3  # laser + [distance_to_goal, sin(angle), cos(angle)]
         # Observation space includes goal coordinates
         self.observation_space = spaces.Box(obs_low, obs_high, shape=(obs_dim,), dtype=numpy.float32)
 
@@ -246,16 +254,19 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Calculate angle to goal relative to robot's heading (Normalized to [-pi, pi])
         goal_angle = math.atan2(dy, dx) - self.robot_yaw
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
+        sin_angle = math.sin(goal_angle)
+        cos_angle = math.cos(goal_angle)
         
         # Apply normalization
-        laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
-        dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
-        angle_norm = goal_angle / math.pi
+        # laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
+        # dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
+        # angle_norm = goal_angle / math.pi
         
         # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
-        full_observations = laser_norm + [dist_norm, angle_norm]
-        
+        # full_observations = laser_norm + [dist_norm, angle_norm]
+        # full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
         # full_observations = laser_ranges + [distance_to_goal, goal_angle]
+        full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
@@ -411,7 +422,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
             distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
-            distance_reward = distance_delta * 20.0 * distance_scaling_factor
+            distance_reward = distance_delta * self.distance_reward_multiplier * distance_scaling_factor
         else:
             distance_reward = 0.0
             
@@ -441,30 +452,28 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         
         # 4. Living penalty to encourage faster completion
-        time_penalty = -0.5
         
         # 5. Penalty on high angular velocity to prevent from unnecessary turns
-        turn_penalty = - 0.5 * math.pow(self.angular_speed, 2)
+        turn_penalty = - self.turn_penalty_multiplier * math.pow(self.angular_speed, 2)
         print("TURN PENALTY: ", turn_penalty)
         
         # Reduce penalty if the marker is close
-        courage_zone = 0.5 # threshold distance for reducing penalty
-        if current_distance < courage_zone:
-            penalty_scale = max(0.2, current_distance / courage_zone)
+        if current_distance < self.courage_zone_threshold:
+            penalty_scale = max(0.2, current_distance / self.courage_zone_threshold)
             obstacle_penalty *= penalty_scale
             print(f"COURAGE MODE ACTIVE: Penalty scaled by {penalty_scale:.2f}")
 
         print("OBSTACLE PENALTY: ", obstacle_penalty)
         
         # 4. Total step reward
-        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty + turn_penalty
+        reward = distance_reward + yaw_reward + obstacle_penalty + self.time_penalty + turn_penalty
         # reward = yaw_reward + obstacle_penalty
         # 5. Terminal Rewards (Overriding step rewards)
         if self._is_succeded():
-            reward = 200.0
+            reward = self.goal_reached_reward
             self.succeed = False
         elif self.fail:
-            reward = -200.0
+            reward = self.obstacle_hit_penalty
         
         return reward
 
