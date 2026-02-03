@@ -370,7 +370,6 @@ if __name__ == '__main__':
         # Send epsilon value
         result_msg.data = [float(avg_max_q), float(cumulated_reward), float(current_eps)]
         result_pub.publish(result_msg)
-        
         if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
         last_rewards.append(cumulated_reward)

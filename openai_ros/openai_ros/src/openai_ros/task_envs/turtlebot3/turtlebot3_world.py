@@ -105,6 +105,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.goal_reached_reward = rospy.get_param('/turtlebot3/goal_reached_reward', 300)
         self.obstacle_hit_penalty = rospy.get_param('/turtlebot3/obstacle_hit_penalty', -100)
         self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
+        self.yaw_reward_multiplier = rospy.get_param('/turtlebot3/yaw_reward_multiplier', 5)
+
 
         # # We create two arrays based on the binary values that will be assigned
         # # In the discretization method.
@@ -258,15 +260,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         cos_angle = math.cos(goal_angle)
         
         # Apply normalization
-        # laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
-        # dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
+        laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
+        dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
         # angle_norm = goal_angle / math.pi
         
         # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
         # full_observations = laser_norm + [dist_norm, angle_norm]
-        # full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
+        full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
         # full_observations = laser_ranges + [distance_to_goal, goal_angle]
-        full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
+        # full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
@@ -443,7 +445,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward
         # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi))
+        base_yaw = (1.0 - (2.0 * abs(goal_angle) / math.pi))
+        if base_yaw < 0:
+            yaw_reward = base_yaw * self.yaw_reward_multiplier  # Amplify penalty
+        else:
+            yaw_reward = base_yaw
         print("YAW REWARD: ", yaw_reward)
         
         # 3. Obstacle Penalty (using our new weighted function)
@@ -451,9 +457,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         front_ranges, front_angles = self._compute_laser_scans(laser_scan)
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         
-        # 4. Living penalty to encourage faster completion
-        
-        # 5. Penalty on high angular velocity to prevent from unnecessary turns
+        # 4. Penalty on high angular velocity to prevent from unnecessary turns
         turn_penalty = - self.turn_penalty_multiplier * math.pow(self.angular_speed, 2)
         print("TURN PENALTY: ", turn_penalty)
         
