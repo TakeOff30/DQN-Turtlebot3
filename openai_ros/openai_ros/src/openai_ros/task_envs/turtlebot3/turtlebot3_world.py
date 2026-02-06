@@ -95,6 +95,18 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Goal position - will be randomized in _init_env_variables
         self.goal_x = 0.0
         self.goal_y = 0.0
+<<<<<<< Updated upstream
+=======
+        
+        # Reward parameters
+        self.distance_reward_multiplier = rospy.get_param('/turtlebot3/distance_reward_multiplier', 50.0)
+        self.turn_penalty_multiplier = rospy.get_param('/turtlebot3/turn_penalty_multiplier', 0.5)
+        self.time_penalty = rospy.get_param('/turtlebot3/time_penalty', 0) # given at each step
+        self.goal_reached_reward = rospy.get_param('/turtlebot3/goal_reached_reward', 300)
+        self.obstacle_hit_penalty = rospy.get_param('/turtlebot3/obstacle_hit_penalty', -100)
+        self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
+        self.yaw_multiplier = rospy.get_param('/turtlebot3/yaw_multiplier', 1)
+>>>>>>> Stashed changes
 
         # # We create two arrays based on the binary values that will be assigned
         # # In the discretization method.
@@ -399,7 +411,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # 2. Alignment Reward (from Script 1)
         # 1.0 if facing goal, -1.0 if facing away.
+<<<<<<< Updated upstream
         yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi) )* 0.1
+=======
+        yaw_reward = self.yaw_multiplier * (1.0 - (2.0 * abs(goal_angle) / math.pi))
+        print("YAW REWARD: ", yaw_reward)
+>>>>>>> Stashed changes
         
         # 3. Obstacle Penalty (using our new weighted function)
         laser_raw = self.discretize_scan_observation(self.get_laser_scan(), self.new_ranges)
