@@ -27,7 +27,7 @@ class TrainingReporter:
             f.write("="*80 + "\n\n")
     
     def write_configuration(self, n_episodes, gamma, epsilon_start, epsilon_end,
-                            epsilon_decay, batch_size, target_update):
+                            epsilon_decay, batch_size, tau):
         with open(self.report_path, 'a') as f:
             f.write("TRAINING CONFIGURATION\n")
             f.write("-"*80 + "\n")
@@ -37,7 +37,7 @@ class TrainingReporter:
             f.write(f"Epsilon End: {epsilon_end}\n")
             f.write(f"Epsilon Decay: {epsilon_decay}\n")
             f.write(f"Batch Size: {batch_size}\n")
-            f.write(f"Target Update Frequency: {target_update}\n")
+            f.write(f"Soft Update Tau: {tau}\n")
             f.write("\n")
     
     def write_training_results(self, training_time, highest_reward, last_time_steps):

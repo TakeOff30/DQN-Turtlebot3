@@ -7,8 +7,8 @@ turtlebot3: #namespace
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.15 # Speed for going forwards
-    linear_turn_speed: 0.05 # Linear speed when turning
+    linear_forward_speed: 0.2 # Speed for going forwards
+    linear_turn_speed: 0.2 # Linear speed when turning
     angular_velocities: [1.5, 0.75, 0.0, -0.75, -1.5]
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
     init_linear_turn_speed: 0.0 # Initial angular speed in which we start each episode
