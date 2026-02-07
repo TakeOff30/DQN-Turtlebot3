@@ -68,7 +68,7 @@ turtlebot3:
     epsilon_start: 0.5 # Start with partial exploration (transfer from stage 1)
     epsilon_end: 0.01
     epsilon_decay: 30000 # Slower decay for obstacle navigation learning
-    n_episodes: 2000
+    n_episodes: 4000
     batch_size: 128
     learning_rate: 0.00005 # Lower LR for fine-tuning pretrained weights
     tau: 0.005 # Soft target update coefficient
