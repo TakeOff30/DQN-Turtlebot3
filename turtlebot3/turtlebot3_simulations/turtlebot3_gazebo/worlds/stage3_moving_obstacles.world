@@ -224,7 +224,7 @@
           <geometry>
             <box>
               <size>0.3 0.3 0.6</size>
-            </box>
+            </box> 
           </geometry>
           <material>
             <ambient>0.5 0.5 0.5 1</ambient>
@@ -300,40 +300,16 @@
       </link>
     </model>
 
-    <!-- MOVING OBSTACLES: 2 cylinders that move around the arena -->
+    <!-- MOVING OBSTACLES: 2 cylinders moved by external ROS node via /gazebo/set_model_state -->
+    <!-- Using <model> instead of <actor> for proper physics collision + lidar detection -->
     
     <!-- Moving Cylinder 1: Orange cylinder starting at bottom-left -->
-    <actor name="moving_obstacle_1">
+    <model name="moving_obstacle_1">
+      <static>false</static>
       <pose>-1.2 -1.2 0.3 0 0 0</pose>
-      <script>
-        <loop>true</loop>
-        <delay_start>0</delay_start>
-        <auto_start>true</auto_start>
-        <!-- Rectangular path around the arena at 0.15 m/s -->
-        <trajectory id="0" type="walking">
-          <waypoint>
-            <time>0</time>
-            <pose>-1.2 -1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>16</time>
-            <pose>1.2 -1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>32</time>
-            <pose>1.2 1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>48</time>
-            <pose>-1.2 1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>64</time>
-            <pose>-1.2 -1.2 0.3 0 0 0</pose>
-          </waypoint>
-        </trajectory>
-      </script>
       <link name="link">
+        <gravity>false</gravity>
+        <kinematic>true</kinematic>
         <collision name="collision">
           <geometry>
             <cylinder>
@@ -355,40 +331,15 @@
           </material>
         </visual>
       </link>
-    </actor>
+    </model>
 
-    <!-- Moving Cylinder 2: Purple cylinder starting at top-right (opposite direction) -->
-    <actor name="moving_obstacle_2">
+    <!-- Moving Cylinder 2: Purple cylinder starting at top-right -->
+    <model name="moving_obstacle_2">
+      <static>false</static>
       <pose>1.2 1.2 0.3 0 0 0</pose>
-      <script>
-        <loop>true</loop>
-        <delay_start>0</delay_start>
-        <auto_start>true</auto_start>
-        <!-- Rectangular path in opposite direction at 0.15 m/s -->
-        <trajectory id="0" type="walking">
-          <waypoint>
-            <time>0</time>
-            <pose>1.2 1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>16</time>
-            <pose>-1.2 1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>32</time>
-            <pose>-1.2 -1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>48</time>
-            <pose>1.2 -1.2 0.3 0 0 0</pose>
-          </waypoint>
-          <waypoint>
-            <time>64</time>
-            <pose>1.2 1.2 0.3 0 0 0</pose>
-          </waypoint>
-        </trajectory>
-      </script>
       <link name="link">
+        <gravity>false</gravity>
+        <kinematic>true</kinematic>
         <collision name="collision">
           <geometry>
             <cylinder>
@@ -410,7 +361,7 @@
           </material>
         </visual>
       </link>
-    </actor>
+    </model>
 
   </world>
 </sdf>
