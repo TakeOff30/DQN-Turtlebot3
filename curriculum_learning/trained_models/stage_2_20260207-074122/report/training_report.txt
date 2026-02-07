@@ -12,3 +12,29 @@ Epsilon Decay: 30000
 Batch Size: 128
 Soft Update Tau: 0.005
 
+TRAINING RESULTS
+--------------------------------------------------------------------------------
+Total Training Time: 07:20:41
+Highest Reward Achieved: 258.12
+Overall Score (mean last time steps): 21.29
+
+EPISODE STATISTICS
+--------------------------------------------------------------------------------
+Reward Statistics:
+  Mean: 153.58
+  Std Dev: 164.10
+  Min: -319.94
+  Max: 258.12
+
+Duration Statistics:
+  Mean: 21.29 steps
+  Std Dev: 8.83 steps
+  Min: 1 steps
+  Max: 101 steps
+
+Distance Statistics:
+  Mean: 1.63 meters
+  Std Dev: 0.71 meters
+  Min: 0.00 meters
+  Max: 7.75 meters
+
