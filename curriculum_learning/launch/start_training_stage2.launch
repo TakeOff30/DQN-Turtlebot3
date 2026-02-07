@@ -8,5 +8,5 @@
     <!-- Start training script -->
     <node pkg="curriculum_learning" type="start_deepqlearning.py" name="turtlebot3_stage2_training" output="screen"/>
     <node pkg="curriculum_learning" type="result_graph.py" name="training_results_plotter" output="screen" required="false"> </node> 
-    <node pkg="curriculum_learning" type="result_action.py" name="action_distribution_plotter" output="screen" required="false"> </node>
+    <node pkg="curriculum_learning" type="action_graph.py" name="action_distribution_plotter" output="screen" required="false"> </node>
 </launch>
