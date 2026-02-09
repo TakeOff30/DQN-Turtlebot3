@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <!-- Stage 2: Inference for Static obstacles -->
+    
+    <!-- Load stage-specific parameters (checkpoint_file is here) -->
+    <rosparam command="load" file="$(find curriculum_learning)/config/stage2_params.yaml" />
+    
+    <!-- Start inference script (Pure Exploitation, No Training) -->
+    <node pkg="curriculum_learning" type="start_deepqinference.py" name="turtlebot3_stage2_inference" output="screen"/>
+</launch>

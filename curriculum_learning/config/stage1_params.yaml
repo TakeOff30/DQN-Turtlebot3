@@ -46,6 +46,7 @@ turtlebot3:
     # DQN parameters - Faster exploration
     gamma: 0.99
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     epsilon_start: 0.99
     epsilon_end: 0.05
     epsilon_decay: 20000 # (n_episode/2)*avg_steps_per_episode)/4 = (500)*50
@@ -69,6 +70,25 @@ turtlebot3:
     time_penalty: -0.5 # given at each step
     goal_reached_reward: 300
     obstacle_hit_penalty: -100
+=======
+    epsilon_start: 1
+    epsilon_end: 0.01
+    epsilon_decay: 10000
+    n_episodes: 1000 
+    target_update: 100 # unused (soft updates via tau)
+    batch_size: 128
+    learning_rate: 0.0001
+    tau: 0.005 # Soft target update coefficient
+    replay_memory_size: 50000
+
+    # Reward settings
+    distance_reward_multiplier: 20.0
+    turn_penalty_multiplier: 1.0
+    yaw_reward_multiplier: 0.5
+    time_penalty: -0.1
+    goal_reached_reward: 200
+    obstacle_hit_penalty: -200
+>>>>>>> Stashed changes
     courage_zone_threshold: 0.5
     yaw_multiplier: 0.6
 

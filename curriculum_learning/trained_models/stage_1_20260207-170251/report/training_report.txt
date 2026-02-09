@@ -1,0 +1,40 @@
+================================================================================
+TURTLEBOT3 DQN TRAINING REPORT
+================================================================================
+
+TRAINING CONFIGURATION
+--------------------------------------------------------------------------------
+Number of Episodes: 1000
+Gamma: 0.99
+Epsilon Start: 1
+Epsilon End: 0.01
+Epsilon Decay: 10000
+Batch Size: 128
+Soft Update Tau: 0.005
+
+TRAINING RESULTS
+--------------------------------------------------------------------------------
+Total Training Time: 02:21:34
+Highest Reward Achieved: 217.30
+Overall Score (mean last time steps): 18.31
+
+EPISODE STATISTICS
+--------------------------------------------------------------------------------
+Reward Statistics:
+  Mean: 182.54
+  Std Dev: 100.48
+  Min: -442.71
+  Max: 217.30
+
+Duration Statistics:
+  Mean: 18.31 steps
+  Std Dev: 12.40 steps
+  Min: 9 steps
+  Max: 122 steps
+
+Distance Statistics:
+  Mean: 1.40 meters
+  Std Dev: 1.05 meters
+  Min: 0.72 meters
+  Max: 10.46 meters
+

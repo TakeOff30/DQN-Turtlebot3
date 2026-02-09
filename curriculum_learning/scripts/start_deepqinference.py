@@ -62,9 +62,15 @@ if __name__ == '__main__':
     model_path = pkg_path + '/trained_models'
 
     # Load inference parameters
+<<<<<<< Updated upstream
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "checkpoint_best.pth")
     n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 10)
     
+=======
+    model_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
+    n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 100)
+
+>>>>>>> Stashed changes
     rospy.loginfo("=== Inference Settings ===")
     rospy.loginfo("Checkpoint file: %s" % checkpoint_file)
     rospy.loginfo("Number of evaluation episodes: %d" % n_eval_episodes)
