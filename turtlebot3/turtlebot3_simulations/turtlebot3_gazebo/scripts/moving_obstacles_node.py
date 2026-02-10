@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """
-Moving Obstacles Node for Stage 3 Training.
+Moving Obstacles Node — Modular, param-driven.
 
 Moves cylinder models along waypoint paths by publishing to /gazebo/set_model_state.
 Uses simulation time (/clock) so movement pauses/resumes correctly with
 gazebo.pauseSim()/unpauseSim() during DQN training.
 
-Handles simulation resets (time jumping to 0) gracefully — this is critical
-because the training loop calls resetSim() between every episode.
+Obstacle paths are read from ROS params (~paths). If no params are found,
+falls back to default Stage 3 rectangular paths for backward compatibility.
+
+Param format (YAML inside launch file's <rosparam> block):
+    paths:
+      - name: moving_obstacle_1
+        speed: 0.15          # optional per-obstacle speed override
+        waypoints:
+          - [0.0, -2.5, 0.3]
+          - [0.0,  2.0, 0.3]
+      - name: moving_obstacle_2
+        waypoints: [...]
 
 Models must exist in the Gazebo world as <model> (not <actor>) with
 kinematic=true links for proper lidar detection and collision.
@@ -54,14 +64,11 @@ class WaypointPath:
             wp = self.waypoints[0]
             return wp[0], wp[1], wp[2], 0.0
 
-        # Loop time
         t_mod = t % self.total_time
 
-        # Find which segment we're on
         elapsed = 0.0
         for i, seg_time in enumerate(self.segment_times):
             if elapsed + seg_time >= t_mod:
-                # Interpolate within this segment
                 frac = (t_mod - elapsed) / seg_time if seg_time > 0 else 0
                 x0, y0, z0 = self.waypoints[i]
                 x1, y1, z1 = self.waypoints[i + 1]
@@ -70,13 +77,11 @@ class WaypointPath:
                 y = y0 + frac * (y1 - y0)
                 z = z0 + frac * (z1 - z0)
 
-                # Yaw: face direction of travel
                 yaw = math.atan2(y1 - y0, x1 - x0)
                 return x, y, z, yaw
 
             elapsed += seg_time
 
-        # Fallback
         wp = self.waypoints[0]
         return wp[0], wp[1], wp[2], 0.0
 
@@ -91,65 +96,83 @@ def yaw_to_quaternion(yaw):
     )
 
 
-def main():
-    rospy.init_node('moving_obstacles_node', anonymous=False)
+def load_obstacles_from_params(default_speed):
+    """
+    Load obstacle definitions from ROS params (~paths).
 
-    # Movement speed (m/s)
-    speed = rospy.get_param('~obstacle_speed', 0.15)
-    # Update rate (Hz) - how often we publish new poses
-    rate_hz = rospy.get_param('~update_rate', 30)
+    Returns list of (model_name, WaypointPath) tuples.
+    Falls back to default Stage 3 rectangular paths if no params found.
+    """
+    paths_param = rospy.get_param('~paths', None)
 
-    # Use a TOPIC publisher instead of a service call.
-    # Publishing is non-blocking and more robust during rapid pause/unpause
-    # cycles that happen every training step.
-    pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
+    if paths_param is not None:
+        obstacles = []
+        for obs_def in paths_param:
+            name = obs_def['name']
+            waypoints = [tuple(wp) for wp in obs_def['waypoints']]
+            obs_speed = obs_def.get('speed', default_speed)
+            path = WaypointPath(waypoints, speed=obs_speed)
+            obstacles.append((name, path))
+            rospy.loginfo(
+                "[MovingObstacles] Loaded '{}': {} waypoints, {} m/s, "
+                "loop time {:.1f}s".format(name, len(waypoints), obs_speed, path.total_time)
+            )
+        return obstacles
 
-    # Define waypoint paths (closed loops, last point = first point)
-    # Obstacle 1: Clockwise rectangular path
+    # -- Fallback: default Stage 3 rectangular paths --
+    rospy.loginfo("[MovingObstacles] No ~paths param found, using default Stage 3 paths")
     path1 = WaypointPath([
         (-1.2, -1.2, 0.3),
-        (1.2, -1.2, 0.3),
-        (1.2, 1.2, 0.3),
-        (-1.2, 1.2, 0.3),
+        ( 1.2, -1.2, 0.3),
+        ( 1.2,  1.2, 0.3),
+        (-1.2,  1.2, 0.3),
         (-1.2, -1.2, 0.3),
-    ], speed=speed)
+    ], speed=default_speed)
 
-    # Obstacle 2: Counter-clockwise rectangular path
     path2 = WaypointPath([
-        (1.2, 1.2, 0.3),
-        (-1.2, 1.2, 0.3),
+        ( 1.2,  1.2, 0.3),
+        (-1.2,  1.2, 0.3),
         (-1.2, -1.2, 0.3),
-        (1.2, -1.2, 0.3),
-        (1.2, 1.2, 0.3),
-    ], speed=speed)
+        ( 1.2, -1.2, 0.3),
+        ( 1.2,  1.2, 0.3),
+    ], speed=default_speed)
 
-    obstacles = [
+    return [
         ('moving_obstacle_1', path1),
         ('moving_obstacle_2', path2),
     ]
+
+
+def main():
+    rospy.init_node('moving_obstacles_node', anonymous=False)
+
+    default_speed = rospy.get_param('~obstacle_speed', 0.15)
+    rate_hz = rospy.get_param('~update_rate', 30)
+
+    pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
+
+    obstacles = load_obstacles_from_params(default_speed)
 
     rate = rospy.Rate(rate_hz)
     last_sim_time = 0.0
 
     rospy.loginfo(
-        f"[MovingObstacles] Moving {len(obstacles)} obstacles at {speed} m/s, "
-        f"{rate_hz} Hz update rate"
+        "[MovingObstacles] Moving {} obstacles, {} Hz update rate".format(
+            len(obstacles), rate_hz)
     )
 
     while not rospy.is_shutdown():
         try:
             now = rospy.get_time()
 
-            # Skip if sim time is 0 (Gazebo not yet publishing /clock or just reset)
             if now < 0.001:
                 rospy.sleep(0.05)
                 continue
 
-            # Detect time reset (resetSim was called between episodes)
             if now < last_sim_time:
                 rospy.loginfo(
-                    f"[MovingObstacles] Sim time reset detected "
-                    f"({last_sim_time:.1f} -> {now:.1f}), continuing..."
+                    "[MovingObstacles] Sim time reset detected "
+                    "({:.1f} -> {:.1f}), continuing...".format(last_sim_time, now)
                 )
 
             last_sim_time = now
@@ -170,8 +193,6 @@ def main():
             rate.sleep()
 
         except rospy.ROSTimeMovedBackwardsException:
-            # Thrown by rate.sleep() when resetSim() jumps sim time to 0.
-            # Just continue — the next iteration will pick up the new time.
             rospy.loginfo("[MovingObstacles] Time moved backwards (sim reset), recovering...")
             continue
 

@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Stage 4: Restaurant-like environment with tables and moving people -->
+  <!-- Robot spawning handled by put_robot_in_world.launch (called by TurtleBot3Env) -->
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/stage4_restaurant.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <node pkg="turtlebot3_gazebo" type="moving_obstacles_node.py" name="moving_obstacles" output="screen">
+    <param name="obstacle_speed" value="0.15"/>
+    <param name="update_rate" value="30"/>
+    <rosparam>
+paths:
+  - name: moving_obstacle_1
+    waypoints:
+      - [0.5, -2.5, 0.3]
+      - [0.5,  2.2, 0.3]
+      - [0.5, -2.5, 0.3]
+  - name: moving_obstacle_2
+    waypoints:
+      - [-0.5,  2.2, 0.3]
+      - [-0.5, -2.5, 0.3]
+      - [-0.5,  2.2, 0.3]
+  - name: moving_obstacle_3
+    waypoints:
+      - [-2.2, -2.2, 0.3]
+      - [ 2.2, -2.2, 0.3]
+      - [ 2.2,  2.0, 0.3]
+      - [-2.2,  2.0, 0.3]
+      - [-2.2, -2.2, 0.3]
+  - name: moving_obstacle_4
+    waypoints:
+      - [ 2.2,  2.0, 0.3]
+      - [-2.2,  2.0, 0.3]
+      - [-2.2, -2.2, 0.3]
+      - [ 2.2, -2.2, 0.3]
+      - [ 2.2,  2.0, 0.3]
+  - name: moving_obstacle_5
+    waypoints:
+      - [-2.2,  2.0, 0.3]
+      - [-2.2, -2.2, 0.3]
+      - [ 2.2, -2.2, 0.3]
+      - [ 2.2,  2.0, 0.3]
+      - [-2.2,  2.0, 0.3]
+  - name: moving_obstacle_6
+    waypoints:
+      - [ 2.2, -2.2, 0.3]
+      - [ 2.2,  2.0, 0.3]
+      - [-2.2,  2.0, 0.3]
+      - [-2.2, -2.2, 0.3]
+      - [ 2.2, -2.2, 0.3]
+  - name: moving_obstacle_7
+    waypoints:
+      - [-2.5,  0.0, 0.3]
+      - [ 2.2,  0.0, 0.3]
+      - [-2.5,  0.0, 0.3]
+    </rosparam>
+  </node>
+</launch>
