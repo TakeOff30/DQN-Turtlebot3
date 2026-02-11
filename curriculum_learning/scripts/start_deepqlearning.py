@@ -211,15 +211,6 @@ if __name__ == '__main__':
     tau = rospy.get_param('/turtlebot3/tau', 0.005)
     replay_memory_size = rospy.get_param('/turtlebot3/replay_memory_size', 100000)
     
-    
-    # Create directories for outputs
-    #model_path = pkg_path +f'/stage_{stage}_{ time.strftime("%Y%m%d-%H%M%S")}'
-    #reports_dir = pkg_path + '/training_reports'
-    # if not os.path.exists(model_path):
-    #     os.makedirs(model_path)
-    # if not os.path.exists(reports_dir):
-    #     os.makedirs(reports_dir)
-    
     run_id = f"stage_{stage}_{time.strftime('%Y%m%d-%H%M%S')}"
     run_dir = os.path.join(trained_models_root, run_id)
 
