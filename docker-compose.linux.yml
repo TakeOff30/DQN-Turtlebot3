@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  turtlebot_learner_linux:
+    build:
+      context: .
+      dockerfile: Dockerfile.linux
+    image: ros_rl_dev_linux
+    container_name: final_project_linux
+    tty: true
+    stdin_open: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.Xauthority
+    volumes:
+      - ./curriculum_learning:/home/ubuntu/simulation_ws/src/curriculum_learning
+      - ./openai_ros:/home/ubuntu/simulation_ws/src/openai_ros
+      - ./turtlebot3:/home/ubuntu/simulation_ws/src/turtlebot3
+      - ./curriculum_learning/trained_models:/home/ubuntu/simulation_ws/src/curriculum_learning/trained_models
+      - ./curriculum_learning/training_reports:/home/ubuntu/simulation_ws/src/curriculum_learning/training_reports
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/.mutter-Xwaylandauth.ZJW0J3:/tmp/.Xauthority
+    network_mode: host

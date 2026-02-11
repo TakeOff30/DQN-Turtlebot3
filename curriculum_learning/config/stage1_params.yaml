@@ -1,99 +1,63 @@
 turtlebot3:
     # Stage 1: Empty environment - Focus on basic goal navigation
-    
+
     task_and_robot_environment_name: 'TurtleBot3World-v0'
-    ros_ws_abspath: "/home/ubuntu/simulation_ws"
-    launch_file_name: "stage1_empty.launch"  # Stage 1 world
+    ros_ws_abspath: '/home/ubuntu/simulation_ws'
+    launch_file_name: 'stage1_empty.launch' # Stage 1 world
     stage: 1
-    
+
     # Environment parameters
     running_step: 0.02
     pos_step: 0.01
-    max_episode_steps: 200  # Shorter episodes for faster learning
-    
-    # Robot control
-    linear_forward_speed: 0.20
-    linear_turn_speed: 0.1
-    angular_speed: 1.5
-    init_linear_forward_speed: 0.0
-    init_linear_turn_speed: 0.0
-    
+    max_episode_steps: 300 # Shorter episodes for faster learning
+
     # Observations (24 laser readings + 2 goal coordinates)
-    new_ranges: 24  # Samples 24 laser readings from 360 total (every 15th reading)
-    min_range: 0.25  # More permissive for stage 1
+    new_ranges: 24 # Samples 24 laser readings from 360 total (every 15th reading)
+    min_range: 0.18 # More permissive for stage 1
     max_laser_value: 3.5
     min_laser_value: 0.0
-    n_actions: 3
-    
+    n_actions: 5
+
     # Collision detection
-    max_linear_aceleration: 1.5  # Relaxed for empty environment
-    
+    max_linear_aceleration: 1.5 # Relaxed for empty environment
+
     # Arena boundaries (3x3 meter bounded box)
-    arena_min_x: -1.5
-    arena_max_x: 1.5
-    arena_min_y: -1.5
-    arena_max_y: 1.5
-    
+    arena_min_x: -2.0
+    arena_max_x: 2.0
+    arena_min_y: -2.0
+    arena_max_y: 2.0
+
     # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
     # Goals spawn within these boundaries to ensure they're accessible
-    safe_arena_min_x: -1.3
-    safe_arena_max_x: 1.3
-    safe_arena_min_y: -1.3
-    safe_arena_max_y: 1.3
-    min_spawn_distance: 1.0  # Minimum distance between robot and goal spawn
-    success_threshold: 0.25   # Distance to consider goal reached (meters)
-    
-    # DQN parameters - Faster exploration
-    gamma: 0.99
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    epsilon_start: 0.99
-    epsilon_end: 0.05
-    epsilon_decay: 20000 # (n_episode/2)*avg_steps_per_episode)/4 = (500)*50
-    n_episodes: 5000
-    target_update: 20 # after 20 episodes the target net is updated
-    batch_size: 128
-    learning_rate: 0.0005
-    
-=======
-    epsilon_start: 1.0
-    epsilon_end: 0.01
-    epsilon_decay: 10000 
-    n_episodes: 1000
-    target_update: 50
-    batch_size: 64
-    learning_rate: 0.0003
+    safe_arena_min_x: -1.0
+    safe_arena_max_x: 1.0
+    safe_arena_min_y: -1.0
+    safe_arena_max_y: 1.0
+    min_spawn_distance: 0.5 # Minimum distance between robot and goal spawn
+    success_threshold: 0.25 # Distance to consider goal reached (meters)
 
-    # Reward settings
-    distance_reward_multiplier: 50.0
-    turn_penalty_multiplier: 0.2
-    time_penalty: -0.5 # given at each step
-    goal_reached_reward: 300
-    obstacle_hit_penalty: -100
-=======
+    # DQN parameters
+    gamma: 0.99
     epsilon_start: 1
     epsilon_end: 0.01
-    epsilon_decay: 10000
-    n_episodes: 1000 
+    epsilon_decay: 50000
+    n_episodes: 3000
     target_update: 100 # unused (soft updates via tau)
     batch_size: 128
     learning_rate: 0.0001
     tau: 0.005 # Soft target update coefficient
-    replay_memory_size: 50000
+    replay_memory_size: 100000
 
     # Reward settings
     distance_reward_multiplier: 20.0
-    turn_penalty_multiplier: 1.0
-    yaw_reward_multiplier: 0.5
+    turn_penalty_multiplier: 0.3
+    yaw_reward_multiplier: 2.0
     time_penalty: -0.1
     goal_reached_reward: 200
     obstacle_hit_penalty: -200
->>>>>>> Stashed changes
     courage_zone_threshold: 0.5
-    yaw_multiplier: 0.6
 
->>>>>>> Stashed changes
     # Checkpoint and Mode Settings
-    load_pretrained_model: false  # Load model weights from checkpoint (starts training from episode 0)
-    checkpoint_file: "checkpoint_latest.pth"  # File to load from trained_models directory
-    inference_mode: false  # Set to true for evaluation only (no training)
+    load_pretrained_model: false # Load model weights from checkpoint (starts training from episode 0)
+    checkpoint_file: 'checkpoint_model_stage1_20260202_225615.pth' # File to load from trained_models directory
+    inference_mode: false # Set to true for evaluation only (no training)

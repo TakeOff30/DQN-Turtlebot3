@@ -3,6 +3,7 @@
 import torch
 import rospy
 import os
+from datetime import datetime
 
 class CheckpointManager:
     def __init__(self, model_path):
@@ -10,69 +11,35 @@ class CheckpointManager:
         if not os.path.exists(model_path):
             os.makedirs(model_path)
     
-    def save_checkpoint(self, episode, policy_net, target_net, optimizer,
-                       reward, steps_done, episode_rewards_history,
-                       reward_breakdown_history, episode_durations_history,
-                       episode_distances_history, episode_epsilon_history):
-        """Save periodic training checkpoint."""
-        checkpoint_data = {
-            'episode': episode,
-            'policy_net_state_dict': policy_net.state_dict(),
-            'target_net_state_dict': target_net.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'reward': reward,
-            'steps_done': steps_done,
-            'reward_history': episode_rewards_history,
-            'reward_breakdown_history': reward_breakdown_history,
-            'duration_history': episode_durations_history,
-            'distance_history': episode_distances_history,
-            'epsilon_history': episode_epsilon_history,
-        }
-        
-        # Save numbered checkpoint
-        checkpoint_path = f"{self.model_path}/checkpoint_ep{episode}.pth"
-        torch.save(checkpoint_data, checkpoint_path)
-        
-        # Save as latest
-        latest_path = f"{self.model_path}/checkpoint_latest.pth"
-        torch.save(checkpoint_data, latest_path)
-        
-        return checkpoint_path
-    
-    def save_final_model(self, n_episodes, policy_net, target_net, optimizer,
-                        cumulated_reward, highest_reward, max_episode_duration,
-                        max_distance_traveled, training_time, gamma,
-                        epsilon_start, epsilon_end, epsilon_decay):
-        """Save final model at end of training."""
+    def save_final_model(self, policy_net, max_avg_reward, filename="model", timestamp=True):
+        """Save final model at end of training with timestamp.        """
         final_model_data = {
-            'episode': n_episodes,
             'policy_net_state_dict': policy_net.state_dict(),
-            'target_net_state_dict': target_net.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'final_reward': cumulated_reward,
-            'highest_reward': highest_reward,
-            'max_episode_duration': max_episode_duration,
-            'max_distance_traveled': max_distance_traveled,
-            'training_time': training_time,
-            'gamma': gamma,
-            'epsilon_start': epsilon_start,
-            'epsilon_end': epsilon_end,
-            'epsilon_decay': epsilon_decay,
+            'max_avg_reward': max_avg_reward
         }
-        
-        final_path = f"{self.model_path}/final_model.pth"
+        timestamp_s = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if timestamp:
+            final_filename = f"{filename}_{timestamp_s}.pth"
+        else:
+            final_filename = f"{filename}.pth"
+        final_path = os.path.join(self.model_path, final_filename)
         torch.save(final_model_data, final_path)
         return final_path
     
-    def load_checkpoint(self, checkpoint_path, policy_net, target_net, optimizer=None):
-        """Load checkpoint from file."""
-        if os.path.isfile(checkpoint_path):
-            rospy.logwarn(f"Loading checkpoint model: {checkpoint_path}")
-            checkpoint = torch.load(checkpoint_path)
-            policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-            target_net.load_state_dict(checkpoint['target_net_state_dict'])
-            if optimizer and 'optimizer_state_dict' in checkpoint:
-                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            rospy.loginfo("Checkpoint loaded successfully!")
-            return checkpoint
-        return None
+    def load_checkpoint(self, checkpoint_path, policy_net, target_net):
+        """Load checkpoint from file .pth and restore model weights."""
+        rospy.logwarn(f"Loading checkpoint model: {checkpoint_path}")
+
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
+        # Load policy network weights
+        policy_net.load_state_dict(checkpoint["policy_net_state_dict"])
+
+        # Sync target network with policy network
+        target_net.load_state_dict(policy_net.state_dict())
+        target_net.eval()
+
+        max_avg_reward = checkpoint.get("max_avg_reward", 0.0)
+
+        rospy.logwarn("Checkpoint loaded successfully!")
+        return max_avg_reward

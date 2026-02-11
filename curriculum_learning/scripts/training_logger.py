@@ -21,7 +21,7 @@ class TrainingLogger:
         m, s = divmod(int(time.time() - self.start_time), 60)
         h, m = divmod(m, 60)
         
-        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} ] - "
+        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} - epsilon: {round(epsilon, 2)}] - "
                     f"Reward: {reward} - Distance: {round(distance, 2)}m - "
                     f"Time: {h-self.last_h:d}:{m-self.last_m:02d}:{s-self.last_s:02d}")
         
@@ -32,19 +32,8 @@ class TrainingLogger:
     def log_new_record(self, metric_name, value, unit=""):
         rospy.loginfo(f"New record! {metric_name}: {value}{unit}")
     
-    def log_checkpoint_saved(self, episode, plot_path):
-        rospy.loginfo(f"Saved metrics plot to {plot_path}")
-        rospy.loginfo(f"Saved checkpoint at episode {episode}")
-    
     def log_robot_stuck(self):
         rospy.loginfo("Robot appears STUCK (moved < 0.1m in 15 steps). Ending episode.")
-    
-    def log_final_scores(self, n_episodes, gamma, epsilon_start, epsilon_decay, highest_reward, 
-                        last_time_steps, episode_rewards_history):
-        rospy.loginfo(f"\n|{n_episodes}|{gamma}|{epsilon_start}*{epsilon_decay}|{highest_reward}| PICTURE |")
-        rospy.loginfo(f"Overall score: {last_time_steps.mean():.2f}")
-        best_100 = sum(episode_rewards_history[-100:]) / len(episode_rewards_history[-100:])
-        rospy.loginfo(f"Best 100 score: {best_100:.2f}")
     
     def log_training_complete(self, max_duration, max_distance, final_model_path, report_path):
         rospy.loginfo(f"Final model saved to: {final_model_path}")

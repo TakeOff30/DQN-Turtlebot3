@@ -3,10 +3,10 @@
     <!-- Stage 1: Empty environment training -->
     
     <!-- Load stage-specific parameters -->
-    <rosparam command="load" file="$(find curriculum_learning)/config/stage1_params.yaml" />
+    <rosparam command="load" file="$(find curriculum_learning)/config/inference1_params.yaml" />
     
     <!-- Start training script -->
-    <node pkg="curriculum_learning" type="start_deepqlearning.py" name="turtlebot3_stage1_training" output="screen"/>
+    <node pkg="curriculum_learning" type="start_deepqinference.py" name="turtlebot3_inference" output="screen"/>
         <node pkg="curriculum_learning" type="result_graph.py" name="training_results_plotter" output="screen" required="false"> </node> 
     <node pkg="curriculum_learning" type="action_graph.py" name="action_distribution_plotter" output="screen" required="false"> </node>
 </launch>
