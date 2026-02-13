@@ -3,7 +3,7 @@ turtlebot3:
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
-    launch_file_name: 'stage4_restaurant.launch'
+    launch_file_name: 'inference_final.launch'
     stage: 4
 
     # Environment parameters
@@ -81,5 +81,5 @@ turtlebot3:
 
     # Checkpoint and Mode Settings
     load_pretrained_model: true
-    checkpoint_file: 'best_model_stage4.pth'
+    checkpoint_file: 'best_model_stage5.pth'
     inference_mode: true

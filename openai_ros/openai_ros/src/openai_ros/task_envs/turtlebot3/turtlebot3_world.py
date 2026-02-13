@@ -158,7 +158,46 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.loginfo("Gazebo service ready")
         
         self._move_goal_marker()
-        
+    
+    def _set_init_pose(self):
+        # --- Inference-only fixed spawn (configured by inference_final.launch) ---
+        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
+        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
+
+        if inference_mode and use_fixed:
+            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
+            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
+            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
+            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
+            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
+
+            state = ModelState()
+            state.model_name = model_name
+            state.reference_frame = "world"
+            state.pose.position.x = x
+            state.pose.position.y = y
+            state.pose.position.z = z
+            state.pose.orientation = Quaternion(
+                x=0.0,
+                y=0.0,
+                z=math.sin(yaw / 2.0),
+                w=math.cos(yaw / 2.0),
+            )
+
+            rospy.loginfo(f"[INFERENCE] Spawning robot at fixed position: ({x}, {y}, {z}), yaw={yaw}")
+            rospy.wait_for_service("/gazebo/set_model_state")
+            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
+            set_state(state)
+
+            return True
+        else:
+            # Normal training: use default init speeds
+            self.move_base(self.init_linear_forward_speed,
+                        self.init_linear_turn_speed,
+                        epsilon=0.05,
+                        update_rate=10)
+
+            return True
 
     def _move_goal_marker(self):
         """Move the existing goal marker to a new position using SetModelState"""
@@ -199,12 +238,47 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
     def _set_init_pose(self):
         """Sets the Robot in its init pose"""
-        self.move_base(self.init_linear_forward_speed,
-                       self.init_linear_turn_speed,
-                       epsilon=0.05,
-                       update_rate=10)
+        # --- Inference-only fixed spawn (configured by inference_final.launch) ---
+        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
+        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
 
-        return True
+        if inference_mode and use_fixed:
+            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
+            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
+            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
+            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
+            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
+
+             # IMPORTANTE: Ferma il robot PRIMA del riposizionamento
+            self.move_base(0.0, 0.0, epsilon=0.05, update_rate=10)
+            rospy.sleep(0.1)  # Aspetta che il comando venga elaborato
+
+            state = ModelState()
+            state.model_name = model_name
+            state.reference_frame = "world"
+            state.pose.position.x = x
+            state.pose.position.y = y
+            state.pose.position.z = z
+            state.pose.orientation = Quaternion(
+                x=0.0,
+                y=0.0,
+                z=math.sin(yaw / 2.0),
+                w=math.cos(yaw / 2.0),
+            )
+
+            rospy.loginfo(f"[INFERENCE] Spawning robot at fixed position: ({x}, {y}, {z}), yaw={yaw}")
+            rospy.wait_for_service("/gazebo/set_model_state")
+            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
+            set_state(state)
+
+            return True
+        else:
+            self.move_base(self.init_linear_forward_speed,
+                        self.init_linear_turn_speed,
+                        epsilon=0.05,
+                        update_rate=10)
+
+            return True
 
     def _init_env_variables(self):
         """
@@ -219,6 +293,36 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.current_episode_step = 0
         self.goals_reached_count = 0
         
+          # In inference mode with fixed pose, reposition robot to fixed start
+        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
+        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
+        
+        if inference_mode and use_fixed:
+            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
+            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
+            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
+            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
+            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
+
+            state = ModelState()
+            state.model_name = model_name
+            state.reference_frame = "world"
+            state.pose.position.x = x
+            state.pose.position.y = y
+            state.pose.position.z = z
+            state.pose.orientation = Quaternion(
+                x=0.0,
+                y=0.0,
+                z=math.sin(yaw / 2.0),
+                w=math.cos(yaw / 2.0),
+            )
+
+            rospy.wait_for_service("/gazebo/set_model_state")
+            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
+            set_state(state)
+            rospy.loginfo(f"[INFERENCE] Reset robot to fixed position: ({x}, {y})")
+        
+    
         self._update_robot_position()
         self._move_goal_marker()  # Generate new random goal each episode
         self._position_goal_marker()  # Place marker in Gazebo
