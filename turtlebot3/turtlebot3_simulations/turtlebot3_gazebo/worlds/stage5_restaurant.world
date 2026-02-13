@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.6">
-  <world name="stage4_restaurant">
-    <!-- Stage 4: Restaurant-like environment with tables and moving people -->
+  <world name="stage5_restaurant">
+    <!-- Stage 5: Restaurant-like environment with tables and moving people -->
 
     <include>
       <uri>model://sun</uri>
