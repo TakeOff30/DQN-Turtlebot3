@@ -27,9 +27,6 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 import torch
 import torch.nn as nn
 
-
-# ── Must match the architecture used during training ──────────────────────────
-
 class DuelingDQN(nn.Module):
     """Dueling DQN: separates Value and Advantage streams."""
 
@@ -155,8 +152,8 @@ if __name__ == '__main__':
                 episode_distances.append(episode_distance)
                 episode_steps_list.append(t + 1)
 
-                if goals > 0:
-                    rospy.loginfo("✓ Goals reached: %d" % goals)
+                if goals == 3:
+                    rospy.loginfo("✓ Goal reached")
                 else:
                     rospy.loginfo("✗ No goal reached")
                 rospy.loginfo("Distance: %.2fm  |  Steps: %d" % (episode_distance, t + 1))
@@ -165,9 +162,8 @@ if __name__ == '__main__':
             state = torch.tensor(observation, device=device, dtype=torch.float)
 
     goals_array = numpy.array(episode_goals)
-    successful_episodes = int(numpy.sum(goals_array >= 1))
+    successful_episodes = int(numpy.sum(goals_array == 3))
     success_rate = (successful_episodes / n_eval_episodes) * 100.0
-    max_goals = int(numpy.max(goals_array)) if len(goals_array) > 0 else 0
     avg_goals = numpy.mean(goals_array) if len(goals_array) > 0 else 0
     avg_distance = numpy.mean(episode_distances) if episode_distances else 0
     avg_steps = numpy.mean(episode_steps_list) if episode_steps_list else 0
@@ -176,8 +172,7 @@ if __name__ == '__main__':
     rospy.loginfo("EVALUATION COMPLETE")
     rospy.loginfo("=" * 60)
     rospy.loginfo("Episodes evaluated       : %d" % n_eval_episodes)
-    rospy.loginfo("Success rate (≥1 goal)   : %.1f%% (%d/%d)" % (success_rate, successful_episodes, n_eval_episodes))
-    rospy.loginfo("Highest goals in 1 ep    : %d" % max_goals)
+    rospy.loginfo("Success rate             : %.1f%% (%d/%d)" % (success_rate, successful_episodes, n_eval_episodes))
     rospy.loginfo("Average goals per episode: %.2f" % avg_goals)
     rospy.loginfo("Average distance         : %.2fm" % avg_distance)
     rospy.loginfo("Average steps            : %.1f" % avg_steps)

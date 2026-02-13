@@ -12,7 +12,6 @@ import os
 import random
 import math
 
-
 class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
         """
@@ -285,8 +284,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             if self.inference_mode:
                 # In inference: record goal, spawn new one, keep going
                 self.goals_reached_count += 1
-                rospy.loginfo("[INFERENCE] Goals reached this episode: %d" % self.goals_reached_count)
-                self._move_goal_marker()
+                if self.goal_reached_reward == 3:
+                    rospy.logwarn("[INFERENCE] Goal reached")
+                    return True
+                if self.goals_reached_count == 2:
+                    # position final goal for inference back to the bar table
+                    self.goal_x = 0
+                    self.goal_y = 2.2
+                else:
+                    self._move_goal_marker()
                 self._position_goal_marker()
                 dx = self.goal_x - self.robot_x
                 dy = self.goal_y - self.robot_y
