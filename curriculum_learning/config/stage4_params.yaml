@@ -1,0 +1,85 @@
+turtlebot3:
+    # Stage 4: Restaurant - Larger arena, tables, moving people
+
+    task_and_robot_environment_name: 'TurtleBot3World-v0'
+    ros_ws_abspath: '/home/ubuntu/simulation_ws'
+    launch_file_name: 'stage4_restaurant.launch'
+    stage: 4
+
+    # Environment parameters
+    running_step: 0.04
+    pos_step: 0.01
+    max_episode_steps: 700
+
+    # Observations
+    new_ranges: 24
+    min_range: 0.19
+    max_laser_value: 4.0
+    min_laser_value: 0.0
+    n_actions: 5
+
+    # Collision detection
+    max_linear_aceleration: 1.2
+
+    # Arena boundaries (6x6 meter bounded box)
+    arena_min_x: -3.0
+    arena_max_x: 3.0
+    arena_min_y: -3.0
+    arena_max_y: 3.0
+
+    goal_positions:
+        # Positions avoid tables and keep clear aisles
+        - [0, 0]
+        - [0, 1.2]
+        - [0, -1.2]
+        - [1.0, 0]
+        - [-1.0, 0]
+        - [2.3, 1.2]
+        - [2.3, -1.2]
+        - [-2.3, 1.2]
+        - [-2.3, -1.2]
+        - [1.0, 2.0]
+        - [-1.0, 2.0]
+        - [1.0, -2.0]
+        - [-1.0, -2.0]
+        - [2.5, 2.5]
+        - [2.5, -2.5]
+        - [-2.5, 2.5]
+        - [-2.5, -2.5]
+        - [0, 2.0]
+        - [0, -2.0]
+        - [2.3, 0]
+        - [-2.3, 0]
+
+    # Safe goal spawning boundaries
+    safe_arena_min_x: -2.8
+    safe_arena_max_x: 2.8
+    safe_arena_min_y: -2.8
+    safe_arena_max_y: 2.8
+    min_spawn_distance: 0.7
+    success_threshold: 0.25
+
+    # DQN parameters - Fine-tuning from stage 3
+    gamma: 0.99
+    epsilon_start: 0.3
+    epsilon_end: 0.01
+    epsilon_decay: 20000
+    n_episodes: 12000
+    batch_size: 128
+    learning_rate: 0.00003
+    tau: 0.005
+    replay_memory_size: 100000
+
+    # Reward settings
+    distance_reward_multiplier: 20.0
+    turn_penalty_multiplier: 0.3
+    yaw_reward_multiplier: 2.0
+    time_penalty: -0.1
+    goal_reached_reward: 200
+    obstacle_hit_penalty: -200
+    courage_zone_threshold: 0.5
+
+    # Checkpoint and Mode Settings
+    load_pretrained_model: true
+    checkpoint_file: 'best_model_stage3.pth'
+    inference_mode: false

@@ -1,5 +1,5 @@
 turtlebot3:
-    # Stage 2: Static obstacles - Learn obstacle avoidance
+    # Stage 2: Static obstacles - Learn obstacle avoidance (transfer from stage 1)
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
@@ -11,13 +11,6 @@ turtlebot3:
     pos_step: 0.01
     max_episode_steps: 400 # More steps for navigation with obstacles
 
-    # Robot control
-    # linear_forward_speed: 0.22
-    # linear_turn_speed: 0.1
-    # angular_speed: 1.5
-    # init_linear_forward_speed: 0.0
-    # init_linear_turn_speed: 0.0
-
     # Observations
     new_ranges: 24
     min_range: 0.19 # Tighter collision threshold
@@ -28,7 +21,7 @@ turtlebot3:
     # Collision detection
     max_linear_aceleration: 1.2 # More sensitive
 
-    # Arena boundaries (3x3 meter bounded box)
+    # Arena boundaries (4x4 meter bounded box)
     arena_min_x: -2.0
     arena_max_x: 2.0
     arena_min_y: -2.0
@@ -62,25 +55,35 @@ turtlebot3:
         - [-1, 0]
         - [1, 0]
 
-    # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
-    # Goals spawn within these boundaries to ensure they're accessible
+    # Safe goal spawning boundaries
     safe_arena_min_x: -1.0
     safe_arena_max_x: 1.0
     safe_arena_min_y: -1.0
     safe_arena_max_y: 1.0
-    min_spawn_distance: 0.5 # Minimum distance between robot and goal spawn
-    success_threshold: 0.25 # Distance to consider goal reached (meters)
-    # DQN parameters - Transfer learning from stage 1
-    gamma: 0.995
-    epsilon_start: 0.95 # Start with some exploitation from stage 1
-    epsilon_end: 0.001
-    epsilon_decay: 15000
-    n_episodes: 2000
-    target_update: 150
-    batch_size: 64
-    learning_rate: 0.001 # Lower learning rate for fine-tuning
+    min_spawn_distance: 0.5
+    success_threshold: 0.25
+
+    # DQN parameters - Fine-tuning from stage 1
+    gamma: 0.99
+    epsilon_start: 0.5 # Start with partial exploration (transfer from stage 1)
+    epsilon_end: 0.01
+    epsilon_decay: 30000 # Slower decay for obstacle navigation learning
+    n_episodes: 4000
+    batch_size: 128
+    learning_rate: 0.00005 # Lower LR for fine-tuning pretrained weights
+    tau: 0.005 # Soft target update coefficient
+    replay_memory_size: 100000
+
+    # Reward settings (consistent with stage 1 scale)
+    distance_reward_multiplier: 20.0
+    turn_penalty_multiplier: 0.3
+    yaw_reward_multiplier: 2.0
+    time_penalty: -0.1
+    goal_reached_reward: 200
+    obstacle_hit_penalty: -200
+    courage_zone_threshold: 0.5
 
     # Checkpoint and Mode Settings - Load from stage 1
-    load_pretrained_model: true # Load model weights from stage 1
-    checkpoint_file: 'final_model_20260128_030639.pth' # Load from stage 1 or "checkpoint_ep1000.pth"
-    inference_mode: false # Set to true for evaluation only (no training)
+    load_pretrained_model: true
+    checkpoint_file: 'best_model_stage1.pth'
+    inference_mode: false

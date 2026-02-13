@@ -12,4 +12,11 @@
     <arg name="headless" value="false"/>
     <arg name="debug" value="false"/>
   </include>
+
+  <!-- Moving obstacles node: moves cylinder models along waypoint paths -->
+  <!-- Uses sim time so movement pauses/resumes with Gazebo pause/unpause -->
+  <node pkg="turtlebot3_gazebo" type="moving_obstacles_node.py" name="moving_obstacles" output="screen">
+    <param name="obstacle_speed" value="0.15"/>
+    <param name="update_rate" value="30"/>
+  </node>
 </launch>

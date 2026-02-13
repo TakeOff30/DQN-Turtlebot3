@@ -1,0 +1,14 @@
+================================================================================
+TURTLEBOT3 DQN TRAINING REPORT
+================================================================================
+
+TRAINING CONFIGURATION
+--------------------------------------------------------------------------------
+Number of Episodes: 2000
+Gamma: 0.99
+Epsilon Start: 1
+Epsilon End: 0.01
+Epsilon Decay: 20000
+Batch Size: 64
+Target Update Frequency: 100
+

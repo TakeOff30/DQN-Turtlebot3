@@ -42,34 +42,55 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-class DQN(nn.Module):
+class DuelingDQN(nn.Module):
+    """Dueling DQN: separates Value and Advantage streams for better learning.
+    Reference: Wang et al. 2016, 'Dueling Network Architectures for Deep RL'
+    """
 
-    def __init__(self, inputs, outputs, resume_training=False):
-        super(DQN, self).__init__()
-        self.fc1 = nn.Linear(inputs, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 32)
-        self.head = nn.Linear(32, outputs)
+    def __init__(self, inputs, outputs):
+        super(DuelingDQN, self).__init__()
         
-        # HE initialization
-        if resume_training == False:
-            nn.init.kaiming_uniform_(self.fc1.weight, nonlinearity='leaky_relu')
-            nn.init.kaiming_uniform_(self.fc2.weight, nonlinearity='leaky_relu')
-            nn.init.kaiming_uniform_(self.fc3.weight, nonlinearity='leaky_relu')
-            nn.init.xavier_uniform_(self.head.weight)
-            nn.init.zeros_(self.fc1.bias)
-            nn.init.zeros_(self.fc2.bias)
-            nn.init.zeros_(self.fc3.bias)
-            nn.init.zeros_(self.head.bias)
+        # Shared feature extraction
+        self.feature = nn.Sequential(
+            nn.Linear(inputs, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+        )
         
-                
+        # Value stream: V(s)
+        self.value_stream = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+        
+        # Advantage stream: A(s, a)
+        self.advantage_stream = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, outputs)
+        )
+        
+        # He (Kaiming) initialization for ReLU networks
+        self.apply(self._init_weights)
+    
+    @staticmethod
+    def _init_weights(module):
+        if isinstance(module, nn.Linear):
+            nn.init.kaiming_normal_(module.weight, nonlinearity='relu')
+            nn.init.constant_(module.bias, 0)
+
     def forward(self, x):
         x = x.to(device)
-
-        x = F.leaky_relu(self.fc1(x))
-        x = F.leaky_relu(self.fc2(x))
-        x = F.leaky_relu(self.fc3(x))
-        return self.head(x)
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        features = self.feature(x)
+        value = self.value_stream(features)
+        advantage = self.advantage_stream(features)
+        # Q(s,a) = V(s) + A(s,a) - mean(A(s,·))
+        q_values = value + advantage - advantage.mean(dim=1, keepdim=True)
+        return q_values
 
 
 def select_action(state, eps_start, eps_end, eps_decay):
@@ -90,54 +111,68 @@ def select_action(state, eps_start, eps_end, eps_decay):
         return torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long), eps_threshold
 
 
-def optimize_model(batch_size, gamma):
+def optimize_model(batch_size, gamma, tau):
+    """Double DQN optimization with soft target network updates.
+    - Uses policy_net to SELECT best actions (reduces overestimation)
+    - Uses target_net to EVALUATE those actions
+    - Soft-updates target_net after each optimization step
+    """
     global loss_values, last_loss_value
     if len(memory) < batch_size:
         last_loss_value = None
         return
     transitions = memory.sample(batch_size)
-    # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
-    # detailed explanation). This converts batch-array of Transitions
-    # to Transition of batch-arrays.
     batch = Transition(*zip(*transitions))
 
-    # Compute a mask of non-final states and concatenate the batch elements
-    # (a final state would've been the one after which simulation ended)
+    # Mask for non-terminal next states
     non_final_mask = torch.tensor(
         tuple(s is not None for s in batch.next_state),
         device=device, dtype=torch.bool
     )
-     # Stack only non-final next states (if any)
     non_final_next_states = None
     if non_final_mask.any():
         non_final_next_states = torch.stack(
             [s for s in batch.next_state if s is not None]
         )
+
     state_batch = torch.stack(batch.state)
-    action_batch = torch.stack(batch.action)
-    reward_batch = torch.stack(batch.reward)
+    # action_batch shape: (B, 1, 1) -> (B, 1)
+    action_batch = torch.stack(batch.action).view(-1, 1)
+    # reward_batch shape: (B, 1) -> (B,)
+    reward_batch = torch.stack(batch.reward).view(-1)
 
-    # Compute Q(s_t, a) - the model computes Q(s_t)
-    state_action_values = policy_net(state_batch).gather(1, torch.squeeze(action_batch, 2))
+    # Q(s_t, a_t): gather Q-values for the taken actions
+    state_action_values = policy_net(state_batch).gather(1, action_batch).squeeze(1)
 
-    # Compute V(s_{t+1}) for all next states.
+    # Double DQN: policy_net selects actions, target_net evaluates them
     next_state_values = torch.zeros(batch_size, device=device)
-    
     if non_final_next_states is not None:
-        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
-    expected_state_action_values = (next_state_values.unsqueeze(1) * gamma) + reward_batch
+        with torch.no_grad():
+            # Policy net picks the best action for each next state
+            best_actions = policy_net(non_final_next_states).argmax(1, keepdim=True)
+            # Target net evaluates Q-value of those actions
+            next_state_values[non_final_mask] = target_net(
+                non_final_next_states
+            ).gather(1, best_actions).squeeze(1)
 
-    # Compute Huber loss
+    # TD target: r + gamma * Q_target(s', argmax_a Q_policy(s', a))
+    expected_state_action_values = reward_batch + (gamma * next_state_values)
+
+    # Huber loss (SmoothL1) for robustness to outliers
     criterion = nn.SmoothL1Loss()
-    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values.detach())
     loss_values.append(loss.item())
     last_loss_value = loss.item()
 
     optimizer.zero_grad()
     loss.backward()
-    for param in policy_net.parameters():
-        param.grad.data.clamp_(-1, 1)
+    # Global gradient norm clipping (more stable than per-param clamping)
+    torch.nn.utils.clip_grad_norm_(policy_net.parameters(), max_norm=10.0)
     optimizer.step()
+
+    # Soft update target network: theta_target = tau*theta_policy + (1-tau)*theta_target
+    for target_param, policy_param in zip(target_net.parameters(), policy_net.parameters()):
+        target_param.data.copy_(tau * policy_param.data + (1.0 - tau) * target_param.data)
 
 if __name__ == '__main__':
   
@@ -155,8 +190,6 @@ if __name__ == '__main__':
 
     trained_models_root = os.path.join(pkg_path, 'trained_models')
     os.makedirs(trained_models_root, exist_ok=True)
-
-
     
     last_time_steps = numpy.ndarray(0)
 
@@ -169,21 +202,13 @@ if __name__ == '__main__':
     epsilon_decay = rospy.get_param("/turtlebot3/epsilon_decay")
     n_episodes = rospy.get_param("/turtlebot3/n_episodes")
     batch_size = rospy.get_param("/turtlebot3/batch_size")
-    target_update = rospy.get_param("/turtlebot3/target_update")
-    lr = rospy.get_param("/turtlebot3/learning_rate", 0.001)
+    lr = rospy.get_param("/turtlebot3/learning_rate", 0.0001)
     running_step = rospy.get_param("/turtlebot3/running_step")
     resume_training = rospy.get_param("/turtlebot3/load_pretrained_model", False)
     checkpoint_file = rospy.get_param("/turtlebot3/checkpoint_file", "best_model.pth")
     stage = rospy.get_param("/turtlebot3/stage")
-    
-    
-    # Create directories for outputs
-    #model_path = pkg_path +f'/stage_{stage}_{ time.strftime("%Y%m%d-%H%M%S")}'
-    #reports_dir = pkg_path + '/training_reports'
-    # if not os.path.exists(model_path):
-    #     os.makedirs(model_path)
-    # if not os.path.exists(reports_dir):
-    #     os.makedirs(reports_dir)
+    tau = rospy.get_param('/turtlebot3/tau', 0.005)
+    replay_memory_size = rospy.get_param('/turtlebot3/replay_memory_size', 100000)
     
     run_id = f"stage_{stage}_{time.strftime('%Y%m%d-%H%M%S')}"
     run_dir = os.path.join(trained_models_root, run_id)
@@ -211,13 +236,13 @@ if __name__ == '__main__':
          f"Observation {initial_obs} outside declared space {env.observation_space}"
     n_observations = len(initial_obs)
 
-    policy_net = DQN(n_observations, n_actions, resume_training=resume_training).to(device)
-    target_net = DQN(n_observations, n_actions, resume_training=resume_training).to(device)
+    policy_net = DuelingDQN(n_observations, n_actions).to(device)
+    target_net = DuelingDQN(n_observations, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
         
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
-    memory = ReplayMemory(50000)
+    memory = ReplayMemory(replay_memory_size)
     episode_durations = []
     steps_done = 0
     start_episode = 0
@@ -232,7 +257,7 @@ if __name__ == '__main__':
     training_manager = TrainingManager(checkpoint_manager, reporter, plots_dir)
     
     reporter.write_header()
-    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, target_update)
+    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, tau)
 
     
     if resume_training:
@@ -246,7 +271,7 @@ if __name__ == '__main__':
         max_avg_reward = checkpoint_manager.load_checkpoint(checkpoint_path, policy_net, target_net)
     
     # Warm-start replay memory before training
-    MIN_REPLAY_SIZE = batch_size * 10
+    MIN_REPLAY_SIZE = batch_size * 15
     rospy.logwarn("=== START WARM UP ===")
     
     warm_start_obs = env.reset()
@@ -324,8 +349,8 @@ if __name__ == '__main__':
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
 
-            optimize_model(batch_size, gamma)
-                
+            optimize_model(batch_size, gamma, tau)
+
             if done:
                 episode_durations.append(t + 1)
                 last_time_steps = numpy.append(last_time_steps, [int(t + 1)])
@@ -341,11 +366,6 @@ if __name__ == '__main__':
                 break
             else:
                 state = next_state
-
-        # update target network
-        if (i_episode+1) % target_update == 0:
-                target_net.load_state_dict(policy_net.state_dict())
-                rospy.loginfo(f"Target network updated at episode: {i_episode+1}")
 
         current_eps = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
         logger.log_episode_end(i_episode, gamma, current_eps, cumulated_reward, episode_distance)
@@ -371,13 +391,18 @@ if __name__ == '__main__':
         # Send epsilon value
         result_msg.data = [float(avg_max_q), float(cumulated_reward), float(current_eps)]
         result_pub.publish(result_msg)
-        
         if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
         last_rewards.append(cumulated_reward)
-        if len(last_rewards) == 50 and numpy.mean(last_rewards) > max_avg_reward:
-            best_policy = policy_net
-            final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
+        
+        # Save best model when we have at least 50 episodes and current average beats historical best
+        if len(last_rewards) == 50:
+            current_avg_reward = numpy.mean(last_rewards)
+            if current_avg_reward > max_avg_reward:
+                max_avg_reward = current_avg_reward
+                best_policy = policy_net
+                final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
+                rospy.loginfo(f"New best model saved! Avg reward: {max_avg_reward:.2f}")
 
         
         # Save periodic checkpoints

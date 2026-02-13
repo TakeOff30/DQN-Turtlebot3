@@ -27,8 +27,8 @@ class TrainingReporter:
             f.write("="*80 + "\n\n")
     
     def write_configuration(self, n_episodes, gamma, epsilon_start, epsilon_end,
-                            epsilon_decay, batch_size, target_update):
-        with open(self.report_path, 'w') as f:
+                            epsilon_decay, batch_size, tau):
+        with open(self.report_path, 'a') as f:
             f.write("TRAINING CONFIGURATION\n")
             f.write("-"*80 + "\n")
             f.write(f"Number of Episodes: {n_episodes}\n")
@@ -37,11 +37,11 @@ class TrainingReporter:
             f.write(f"Epsilon End: {epsilon_end}\n")
             f.write(f"Epsilon Decay: {epsilon_decay}\n")
             f.write(f"Batch Size: {batch_size}\n")
-            f.write(f"Target Update Frequency: {target_update}\n")
+            f.write(f"Soft Update Tau: {tau}\n")
             f.write("\n")
     
     def write_training_results(self, training_time, highest_reward, last_time_steps):
-        with open(self.report_path, 'w') as f:
+        with open(self.report_path, 'a') as f:
             f.write("TRAINING RESULTS\n")
             f.write("-"*80 + "\n")
             hours, remainder = divmod(int(training_time), 3600)
@@ -53,7 +53,7 @@ class TrainingReporter:
     
     def write_episode_statistics(self, episode_rewards_history,
                                   episode_durations_history, episode_distances_history):
-        with open(self.report_path, 'w') as f:
+        with open(self.report_path, 'a') as f:
             f.write("EPISODE STATISTICS\n")
             f.write("-"*80 + "\n")
             

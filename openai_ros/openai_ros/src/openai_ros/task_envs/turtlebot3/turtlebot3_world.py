@@ -13,7 +13,6 @@ import os
 import random
 import math
 
-
 class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
         """
@@ -68,6 +67,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.angular_velocities = rospy.get_param('/turtlebot3/angular_velocities')
         self.init_linear_forward_speed = rospy.get_param('/turtlebot3/init_linear_forward_speed')
         self.init_linear_turn_speed = rospy.get_param('/turtlebot3/init_linear_turn_speed')
+        self.angular_speed = 0
 
         self.new_ranges = rospy.get_param('/turtlebot3/new_ranges')
         self.min_range = rospy.get_param('/turtlebot3/min_range')
@@ -97,6 +97,16 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Goal position - will be randomized in _init_env_variables
         self.goal_x = 0.0
         self.goal_y = 0.0
+        
+        # Reward parameters
+        self.distance_reward_multiplier = rospy.get_param('/turtlebot3/distance_reward_multiplier', 50.0)
+        self.turn_penalty_multiplier = rospy.get_param('/turtlebot3/turn_penalty_multiplier', 0.5)
+        self.time_penalty = rospy.get_param('/turtlebot3/time_penalty', 0) # given at each step
+        self.goal_reached_reward = rospy.get_param('/turtlebot3/goal_reached_reward', 300)
+        self.obstacle_hit_penalty = rospy.get_param('/turtlebot3/obstacle_hit_penalty', -100)
+        self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
+        self.yaw_reward_multiplier = rospy.get_param('/turtlebot3/yaw_reward_multiplier', 5)
+
 
         # # We create two arrays based on the binary values that will be assigned
         # # In the discretization method.
@@ -104,7 +114,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         total_laser_readings = len(laser_scan.ranges)
         num_laser_readings = int(total_laser_readings / self.new_ranges)
-        
+    
         rospy.loginfo(f"Laser readings: {total_laser_readings} total, sampling every {self.new_ranges}th = {num_laser_readings} readings")
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
         num_laser_readings = len(laser_ranges)
@@ -113,15 +123,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.max_goal_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
                                            (self.arena_max_y - self.arena_min_y)**2)
         
-        # Observation space: [laser_readings..., distance_to_goal, angle_to_goal]
+        # Observation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
         laser_high = numpy.full((num_laser_readings,), self.max_laser_value, dtype=numpy.float32)
         laser_low = numpy.full((num_laser_readings,), self.min_laser_value, dtype=numpy.float32)
         obs_high = numpy.concatenate([laser_high, 
-                                      numpy.array([self.max_goal_distance, math.pi], dtype=numpy.float32)])
+                                      numpy.array([self.max_goal_distance, 1.0, 1.0], dtype=numpy.float32)])
         obs_low = numpy.concatenate([laser_low, 
-                                     numpy.array([0.0, -math.pi], dtype=numpy.float32)])
+                                     numpy.array([0.0, -1.0, -1.0], dtype=numpy.float32)])
         
-        obs_dim = num_laser_readings + 2  # laser + [distance_to_goal, angle_to_goal]
+        obs_dim = num_laser_readings + 3  # laser + [distance_to_goal, sin(angle), cos(angle)]
         # Observation space includes goal coordinates
         self.observation_space = spaces.Box(obs_low, obs_high, shape=(obs_dim,), dtype=numpy.float32)
 
@@ -129,6 +139,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         self.cumulated_steps = 0.0
+        
+        # Inference mode: don't end episode on goal reach, spawn new goal instead
+        self.inference_mode = rospy.get_param('/turtlebot3/inference_mode', False)
+        self.goals_reached_count = 0
         
         # Initialize robot position tracking
         self.robot_x = 0.0
@@ -204,9 +218,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.succeed = False
         self.fail = False
         self.current_episode_step = 0
+        self.goals_reached_count = 0
         
         self._update_robot_position()
-        self._position_goal_marker()
+        self._move_goal_marker()  # Generate new random goal each episode
+        self._position_goal_marker()  # Place marker in Gazebo
         
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
@@ -219,12 +235,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         :param action: The action integer that set s what movement to do next.
         """
         
-        angular_speed = self.angular_velocities[action]
+        self.angular_speed = self.angular_velocities[action]
         linear_speed = self.linear_forward_speed
-        rospy.logwarn(f"ANGULAR VELOCITY: {angular_speed}")
+        rospy.logwarn(f"ANGULAR VELOCITY: {self.angular_speed}")
         
         # We tell TurtleBot2 the linear and angular speed to set to execute
-        self.move_base(linear_speed, angular_speed, epsilon=0.05, update_rate=10)
+        self.move_base(linear_speed, self.angular_speed, epsilon=0.05, update_rate=10)
         
         # Increment episode step counter
         self.current_episode_step += 1
@@ -246,21 +262,46 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Calculate angle to goal relative to robot's heading (Normalized to [-pi, pi])
         goal_angle = math.atan2(dy, dx) - self.robot_yaw
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
+        sin_angle = math.sin(goal_angle)
+        cos_angle = math.cos(goal_angle)
         
         # Apply normalization
         laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
         dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
-        angle_norm = goal_angle / math.pi
+        # angle_norm = goal_angle / math.pi
         
         # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
-        full_observations = laser_norm + [dist_norm, angle_norm]
-        
+        # full_observations = laser_norm + [dist_norm, angle_norm]
+        full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
         # full_observations = laser_ranges + [distance_to_goal, goal_angle]
+        # full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
     def _is_done(self, observations):
-        return self._is_failed()
+        if self._is_failed():
+            return True
+        if self._is_succeded():
+            if self.inference_mode:
+                # In inference: record goal, spawn new one, keep going
+                self.goals_reached_count += 1
+                if self.goal_reached_reward == 3:
+                    rospy.logwarn("[INFERENCE] Goal reached")
+                    return True
+                if self.goals_reached_count == 2:
+                    # position final goal for inference back to the bar table
+                    self.goal_x = 0
+                    self.goal_y = 2.2
+                else:
+                    self._move_goal_marker()
+                self._position_goal_marker()
+                dx = self.goal_x - self.robot_x
+                dy = self.goal_y - self.robot_y
+                self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+                self.succeed = False
+                return False
+            return True
+        return False
         
     def _is_failed(self):
         """
@@ -303,12 +344,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logwarn("Robot position (%.2f, %.2f), Goal (%.2f, %.2f), Distance to goal: %.3f" % (self.robot_x, self.robot_y, self.goal_x, self.goal_y, distance_to_goal))
         
         if distance_to_goal < self.success_threshold:
-            # move goal
-            self._move_goal_marker()
-            rospy.loginfo("New goal at: (%.2f, %.2f), distance: %.2fm" % (self.goal_x, self.goal_y, self.previous_distance_to_goal))
             self.succeed = True
             rospy.loginfo("Goal reached! Distance: %.3f meters" % distance_to_goal)
-            self._position_goal_marker()
         
         return self.succeed
     
@@ -407,11 +444,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return final_ranges, final_angles
     
     def _compute_distance_reward(self, current_distance):
-        # 1. Positive reward if moving towards goal
+        # Positive reward if moving towards goal, negative if moving away
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
-            distance_scaling_factor = 1.0 + (1.0 / (current_distance + 0.1))
-            distance_reward = distance_delta * 20.0 * distance_scaling_factor
+            distance_reward = distance_delta * self.distance_reward_multiplier
+            # Clip to prevent extreme values
+            distance_reward = numpy.clip(distance_reward, -10.0, 10.0)
         else:
             distance_reward = 0.0
             
@@ -426,43 +464,39 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Normalize angle to [-pi, pi]
         goal_angle = math.atan2(math.sin(goal_angle), math.cos(goal_angle))
 
+        if self.succeed:
+            self.previous_distance_to_goal = current_distance
+            rospy.loginfo("SUCCESS REWARD: %.1f" % self.goal_reached_reward)
+            return self.goal_reached_reward
+        elif self.fail:
+            self.previous_distance_to_goal = current_distance
+            rospy.loginfo("FAILURE PENALTY: %.1f" % self.obstacle_hit_penalty)
+            return self.obstacle_hit_penalty
+
         distance_reward = self._compute_distance_reward(current_distance)
         self.previous_distance_to_goal = current_distance
-        print("DISTANCE REWARD: ", distance_reward)
     
-        # 2. Alignment Reward
-        # 1.0 if facing goal, -1.0 if facing away.
-        yaw_reward = (1.0 - (2.0 * abs(goal_angle) / math.pi))
-        print("YAW REWARD: ", yaw_reward)
+        # Heading alignment: cos(angle) gives +1 facing goal, -1 facing away
+        heading_reward = math.cos(goal_angle) * self.yaw_reward_multiplier
         
-        # 3. Obstacle Penalty (using our new weighted function)
-        laser_scan = self.get_laser_scan() # to be sure to Get latest laser scan 
+        laser_scan = self.get_laser_scan()
         front_ranges, front_angles = self._compute_laser_scans(laser_scan)
         obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
         
-        # Living penalty to encourage faster completion
-        time_penalty = -0.5
-        
-        # turn_penalty = c * (vel_ang)^2
-        
-        # Reduce penalty if the marker is close
-        courage_zone = 0.5 # threshold distance for reducing penalty
-        if current_distance < courage_zone:
-            penalty_scale = max(0.2, current_distance / courage_zone)
+        # Reduce penalty near goal
+        if current_distance < self.courage_zone_threshold:
+            penalty_scale = max(0.2, current_distance / self.courage_zone_threshold)
             obstacle_penalty *= penalty_scale
-            print(f"COURAGE MODE ACTIVE: Penalty scaled by {penalty_scale:.2f}")
 
-        print("OBSTACLE PENALTY: ", obstacle_penalty)
+        # penalize angular velocity magnitude
+        turn_penalty = -self.turn_penalty_multiplier * abs(self.angular_speed)
         
-        # 4. Total step reward
-        reward = distance_reward + yaw_reward + obstacle_penalty + time_penalty
-        # reward = yaw_reward + obstacle_penalty
-        # 5. Terminal Rewards (Overriding step rewards)
-        if self._is_succeded():
-            reward = 200.0
-            self.succeed = False
-        elif self.fail:
-            reward = -200.0
+        time_pen = self.time_penalty
+        
+        reward = distance_reward + heading_reward + obstacle_penalty + turn_penalty + time_pen
+        
+        rospy.logdebug("Reward: dist=%.2f head=%.2f obs=%.2f turn=%.2f time=%.2f total=%.2f" %
+                       (distance_reward, heading_reward, obstacle_penalty, turn_penalty, time_pen, reward))
         
         return reward
 
