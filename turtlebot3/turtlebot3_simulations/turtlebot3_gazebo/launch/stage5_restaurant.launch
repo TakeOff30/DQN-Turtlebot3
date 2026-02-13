@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Stage 5: Restaurant-like environment with tables and random moving people -->
+  <!-- Robot spawning handled by put_robot_in_world.launch (called by TurtleBot3Env) -->
+
+
+  <!-- Launch Gazebo with restaurant world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/turtlebot3_stage5_restaurant.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <!-- Spawn TurtleBot3 -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro" />
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" args="-urdf -model turtlebot3_$(arg model) -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />
+
+  <!-- Random walking obstacles node -->
+  <node pkg="turtlebot3_gazebo" type="random_walker.py" name="random_obstacles_node" output="screen">
+    <param name="obstacle_speed" value="0.12"/>
+    <param name="update_rate" value="30"/>
+    
+    <!-- Define obstacles with starting positions -->
+    <rosparam param="paths">
+      - name: moving_obstacle_1
+        speed: 0.12
+        waypoints:
+          - [1.5, 1.0, 0.3]
+      - name: moving_obstacle_2
+        speed: 0.10
+        waypoints:
+          - [-1.5, -1.0, 0.3]
+      - name: moving_obstacle_3
+        speed: 0.15
+        waypoints:
+          - [2.0, -1.5, 0.3]
+      - name: moving_obstacle_4
+        speed: 0.08
+        waypoints:
+          - [-2.0, 1.5, 0.3]
+    </rosparam>
+  </node>
+</launch>
