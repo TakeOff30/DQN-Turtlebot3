@@ -28,28 +28,42 @@ turtlebot3:
     arena_max_y: 3.0
 
     goal_positions:
-        # Positions avoid tables and keep clear aisles
-        - [0, 0]
-        - [0, 1.2]
-        - [0, -1.2]
-        - [1.0, 0]
-        - [-1.0, 0]
-        - [2.3, 1.2]
-        - [2.3, -1.2]
-        - [-2.3, 1.2]
-        - [-2.3, -1.2]
-        - [1.0, 2.0]
-        - [-1.0, 2.0]
-        - [1.0, -2.0]
-        - [-1.0, -2.0]
-        - [2.5, 2.5]
-        - [2.5, -2.5]
-        - [-2.5, 2.5]
-        - [-2.5, -2.5]
-        - [0, 2.0]
-        - [0, -2.0]
-        - [2.3, 0]
-        - [-2.3, 0]
+         # Table 1 (kitchen area) - top-left quadrant
+        #- [-2.0, 2.0]   # Near kitchen counter
+        
+        # Table 2 (entrance area) - top-right quadrant
+        #- [2.0, 2.0]    # Near entrance table
+        
+        # Table 3 (center-left) - main dining
+        - [-2.0, 1.5]   # Left center table
+        - [-2.0, 0.0]   # Side service point
+        - [-2.0, -1.5]  # Adjacent seating
+        
+        # Table 4 (center-right) - main dining
+        - [2.0, 1.5]    # Right center table
+        - [2.0, 0.0]    # Side service point
+        - [2.0, -1.5]   # Adjacent seating
+        
+        # Table 5 (bottom-left) - corner dining
+        - [-2.0, -1.5]  # Corner table left
+        - [-1.5, -2.0]  # Back dining area
+        
+        # Table 6 (bottom-right) - corner dining
+        - [2.0, -1.5]   # Corner table right
+        #- [1.5, -2.2]   # Back dining area
+        
+        # Center aisle waypoints (navigation paths between tables)
+        #- [0.0, 1.5]    # North aisle center
+        #- [0.0, -1.5]   # South aisle center
+        
+        # serving table from the central corridor
+        - [-1.0, 0.0]   # Left corridor upper
+        - [-1.0, 1.5]   # Left corridor upper
+        - [-1.0, -1.5]  # Left corridor lower
+        - [1.0, 0.0]   # Left corridor upper
+        - [1.0, 1.5]    # Right corridor upper
+        - [1.0, -1.5]   # Right corridor lower
+
 
     # Safe goal spawning boundaries
     safe_arena_min_x: -2.8
