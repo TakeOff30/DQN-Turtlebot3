@@ -66,7 +66,7 @@ turtlebot3:
     epsilon_decay: 20000
     n_episodes: 12000
     batch_size: 128
-    learning_rate: 0.0001
+    learning_rate: 0.00006
     tau: 0.005
     replay_memory_size: 100000
 

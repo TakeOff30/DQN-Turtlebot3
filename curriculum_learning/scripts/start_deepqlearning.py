@@ -258,7 +258,7 @@ if __name__ == '__main__':
     training_manager = TrainingManager(checkpoint_manager, reporter, plots_dir)
     
     reporter.write_header()
-    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, tau)
+    reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, tau, lr)
 
     
     if resume_training:
