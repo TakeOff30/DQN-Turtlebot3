@@ -16,6 +16,7 @@ class RandomWalker:
 
     def __init__(self, name, start_pos, speed=0.1):
         self.name = name
+        self.initial_pos = start_pos  # Store initial position for resets
         self.x, self.y, self.z = start_pos
         self.speed = speed
         self.yaw = random.uniform(-math.pi, math.pi)
@@ -23,6 +24,13 @@ class RandomWalker:
         self.time_since_change = 0.0
         self.change_interval = 5.0
         self.limit = 2.8 # Stage 4 is 6x6, keeping buffer from 3.0 walls
+
+    def reset(self):
+        """Reset to initial position and random orientation."""
+        self.x, self.y, self.z = self.initial_pos
+        self.yaw = random.uniform(-math.pi, math.pi)
+        self.time_since_change = 0.0
+        rospy.loginfo(f"[{self.name}] Reset to initial position ({self.x:.2f}, {self.y:.2f})")
 
     def update(self, dt):
         """Update position based on speed, yaw, and time delta."""
@@ -108,6 +116,7 @@ def main():
 
     rate = rospy.Rate(rate_hz)
     last_time = rospy.get_time()
+    last_sim_time = 0.0  # Track sim time for reset detection
 
     while not rospy.is_shutdown():
         try:
@@ -115,7 +124,26 @@ def main():
             dt = now - last_time
             last_time = now
 
-            # Handle simulation reset or pause (negative or huge dt)
+            # Detect simulation reset (time jump backwards or to near-zero)
+            if now < last_sim_time or (now < 1.0 and last_sim_time > 1.0):
+                rospy.loginfo("[RandomWalk] Episode reset detected - resetting obstacles")
+                for walker in obstacles:
+                    walker.reset()
+                    # Immediately publish reset positions
+                    state = ModelState()
+                    state.model_name = walker.name
+                    state.reference_frame = 'world'
+                    state.pose.position.x = walker.x
+                    state.pose.position.y = walker.y
+                    state.pose.position.z = walker.z
+                    state.pose.orientation = yaw_to_quaternion(walker.yaw)
+                    pub.publish(state)
+                last_sim_time = now
+                continue
+
+            last_sim_time = now
+
+            # Handle simulation pause (negative or huge dt)
             if dt < 0 or dt > 1.0:
                 continue
 
@@ -134,6 +162,9 @@ def main():
 
             rate.sleep()
 
+        except rospy.ROSTimeMovedBackwardsException:
+            rospy.logwarn("[RandomWalk] Time moved backwards (sim reset), recovering...")
+            continue
         except rospy.ROSInterruptException:
             pass
 
