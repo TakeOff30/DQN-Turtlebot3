@@ -2,7 +2,7 @@
 <launch>
   <!-- make the robot start in a position near the kitchen-->
     <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
-    <arg name="x_pos" default="-0.3"/>
+    <arg name="x_pos" default="0.5"/>
     <arg name="y_pos" default="2.1"/>
     <arg name="z_pos" default="0.0"/>
 
