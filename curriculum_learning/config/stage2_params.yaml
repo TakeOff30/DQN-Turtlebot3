@@ -66,9 +66,9 @@ turtlebot3:
 
     # DQN parameters - Fine-tuning from stage 1
     gamma: 0.99
-    epsilon_start: 0.5 # Start with partial exploration (transfer from stage 1)
+    epsilon_start: 0.7 # Start with partial exploration (transfer from stage 1)
     epsilon_end: 0.01
-    epsilon_decay: 25000 # Slower decay for obstacle navigation learning
+    epsilon_decay: 20000
     n_episodes: 3000
     batch_size: 128
     learning_rate: 0.0005 # Lower LR for fine-tuning pretrained weights

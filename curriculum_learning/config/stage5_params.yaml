@@ -62,7 +62,7 @@ turtlebot3:
 
     # DQN parameters - Fine-tuning from stage 3
     gamma: 0.99
-    epsilon_start: 0.35
+    epsilon_start: 0.4
     epsilon_end: 0.01
     epsilon_decay: 25000
     n_episodes: 12000
