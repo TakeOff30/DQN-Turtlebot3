@@ -40,6 +40,7 @@ class DuelingDQN(nn.Module):
             nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
+        device = next(self.parameters()).device
         x = x.to(device)
         if x.dim() == 1:
             x = x.unsqueeze(0)

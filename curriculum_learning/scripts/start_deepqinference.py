@@ -3,9 +3,6 @@
 DQN Inference Script for TurtleBot3 Navigation
 
 Loads a trained Dueling DQN model and runs evaluation episodes.
-In inference mode the episode does NOT reset when the robot reaches a goal;
-instead a new goal is spawned and the robot keeps navigating until collision
-or max_episode_steps is hit.
 
 Metrics reported:
   - Highest number of goals reached in a single episode
@@ -26,37 +23,10 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 
 import torch
 import torch.nn as nn
+from models.dqn import DQN
+from models.dueling_dqn import DuelingDQN
 
-class DuelingDQN(nn.Module):
-    """Dueling DQN: separates Value and Advantage streams."""
 
-    def __init__(self, inputs, outputs):
-        super(DuelingDQN, self).__init__()
-        self.feature = nn.Sequential(
-            nn.Linear(inputs, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-        )
-        self.value_stream = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1),
-        )
-        self.advantage_stream = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, outputs),
-        )
-
-    def forward(self, x):
-        x = x.to(device)
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-        features = self.feature(x)
-        value = self.value_stream(features)
-        advantage = self.advantage_stream(features)
-        return value + advantage - advantage.mean(dim=1, keepdim=True)
 
 if __name__ == '__main__':
 
@@ -77,6 +47,7 @@ if __name__ == '__main__':
     # Load inference parameters
     model_file = rospy.get_param("/turtlebot3/best_model", "best_model_stage1.pth")
     n_eval_episodes = rospy.get_param("/turtlebot3/n_episodes", 100)
+    model_type = rospy.get_param("/turtlebot3/model_type", "dueling_dqn")
 
     rospy.loginfo("=== Inference Settings ===")
     rospy.loginfo("Model: %s" % model_file)
@@ -93,7 +64,15 @@ if __name__ == '__main__':
     n_observations = len(initial_obs)
 
     # Initialize & load policy network
-    policy_net = DuelingDQN(n_observations, n_actions).to(device)
+    if model_type == 'dqn':
+        policy_net = DQN(n_observations, n_actions).to(device)
+    elif model_type == 'dueling_dqn':
+        policy_net = DuelingDQN(n_observations, n_actions).to(device)
+    else:
+        rospy.logerr(f"Unknown model type: {model_type}")
+        env.close()
+        exit(1)
+
     policy_net.eval()
 
     model_path = os.path.join(trained_models_root, model_file)
@@ -110,7 +89,7 @@ if __name__ == '__main__':
     rospy.loginfo("Model loaded successfully!")
 
     rospy.loginfo("=" * 50)
-    rospy.loginfo("RUNNING INFERENCE – goals do NOT end the episode")
+    rospy.loginfo("RUNNING INFERENCE")
     rospy.loginfo("=" * 50)
 
     episode_goals = []       # goals reached per episode
