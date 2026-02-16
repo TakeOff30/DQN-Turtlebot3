@@ -5,6 +5,7 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage5_restaurant.launch'
     stage: 5
+    model_type: 'dueling_dqn'
 
     # Environment parameters
     running_step: 0.04
@@ -61,12 +62,12 @@ turtlebot3:
 
     # DQN parameters - Fine-tuning from stage 3
     gamma: 0.99
-    epsilon_start: 0.3
+    epsilon_start: 0.35
     epsilon_end: 0.01
-    epsilon_decay: 20000
+    epsilon_decay: 25000
     n_episodes: 12000
     batch_size: 128
-    learning_rate: 0.00006
+    learning_rate: 0.0001
     tau: 0.005
     replay_memory_size: 100000
 

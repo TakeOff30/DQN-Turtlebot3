@@ -5,6 +5,7 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage2_static_obstacles.launch' # Stage 2 world
     stage: 2
+    model_type: 'dueling_dqn'
 
     # Environment parameters
     running_step: 0.03
@@ -67,10 +68,10 @@ turtlebot3:
     gamma: 0.99
     epsilon_start: 0.5 # Start with partial exploration (transfer from stage 1)
     epsilon_end: 0.01
-    epsilon_decay: 30000 # Slower decay for obstacle navigation learning
-    n_episodes: 4000
+    epsilon_decay: 25000 # Slower decay for obstacle navigation learning
+    n_episodes: 3000
     batch_size: 128
-    learning_rate: 0.00005 # Lower LR for fine-tuning pretrained weights
+    learning_rate: 0.0005 # Lower LR for fine-tuning pretrained weights
     tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 

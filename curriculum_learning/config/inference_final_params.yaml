@@ -1,10 +1,9 @@
 turtlebot3:
-    # Stage 1 Inference: Continuous goal navigation (no reset on goal reach)
-
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'inference_final.launch'
     stage: 4
+    model_type: 'dueling_dqn'
 
     # Environment parameters
     running_step: 0.04
@@ -28,42 +27,41 @@ turtlebot3:
     arena_max_y: 3.0
 
     goal_positions:
-         # Table 1 (kitchen area) - top-left quadrant
+        # Table 1 (kitchen area) - top-left quadrant
         #- [-2.0, 2.0]   # Near kitchen counter
-        
+
         # Table 2 (entrance area) - top-right quadrant
         #- [2.0, 2.0]    # Near entrance table
-        
+
         # Table 3 (center-left) - main dining
-        - [-2.0, 1.5]   # Left center table
-        - [-2.0, 0.0]   # Side service point
-        - [-2.0, -1.5]  # Adjacent seating
-        
+        - [-2.0, 1.5] # Left center table
+        - [-2.0, 0.0] # Side service point
+        - [-2.0, -1.5] # Adjacent seating
+
         # Table 4 (center-right) - main dining
-        - [2.0, 1.5]    # Right center table
-        - [2.0, 0.0]    # Side service point
-        - [2.0, -1.5]   # Adjacent seating
-        
+        - [2.0, 1.5] # Right center table
+        - [2.0, 0.0] # Side service point
+        - [2.0, -1.5] # Adjacent seating
+
         # Table 5 (bottom-left) - corner dining
-        - [-2.0, -1.5]  # Corner table left
-        - [-1.5, -2.0]  # Back dining area
-        
+        - [-2.0, -1.5] # Corner table left
+        - [-1.5, -2.0] # Back dining area
+
         # Table 6 (bottom-right) - corner dining
-        - [2.0, -1.5]   # Corner table right
+        - [2.0, -1.5] # Corner table right
         #- [1.5, -2.2]   # Back dining area
-        
+
         # Center aisle waypoints (navigation paths between tables)
         #- [0.0, 1.5]    # North aisle center
         #- [0.0, -1.5]   # South aisle center
-        
-        # serving table from the central corridor
-        - [-1.0, 0.0]   # Left corridor upper
-        - [-1.0, 1.5]   # Left corridor upper
-        - [-1.0, -1.5]  # Left corridor lower
-        - [1.0, 0.0]   # Left corridor upper
-        - [1.0, 1.5]    # Right corridor upper
-        - [1.0, -1.5]   # Right corridor lower
 
+        # serving table from the central corridor
+        - [-1.0, 0.0] # Left corridor upper
+        - [-1.0, 1.5] # Left corridor upper
+        - [-1.0, -1.5] # Left corridor lower
+        - [1.0, 0.0] # Left corridor upper
+        - [1.0, 1.5] # Right corridor upper
+        - [1.0, -1.5] # Right corridor lower
 
     # Safe goal spawning boundaries
     safe_arena_min_x: -2.8

@@ -5,6 +5,7 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage3_moving_obstacles.launch' # Stage 3 world
     stage: 3
+    model_type: 'dueling_dqn'
 
     # Environment parameters
     running_step: 0.03
@@ -65,12 +66,12 @@ turtlebot3:
 
     # DQN parameters - Fine-tuning from stage 1
     gamma: 0.99
-    epsilon_start: 0.3 # Start with partial exploration
+    epsilon_start: 0.4 # Start with partial exploration
     epsilon_end: 0.01
     epsilon_decay: 20000 # Slower decay for obstacle navigation learning
     n_episodes: 6000
     batch_size: 128
-    learning_rate: 0.00003 # Lower LR for fine-tuning pretrained weights
+    learning_rate: 0.0003 # Lower LR for fine-tuning pretrained weights
     tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 
