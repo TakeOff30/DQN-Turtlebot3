@@ -99,6 +99,21 @@ def load_obstacles(default_speed):
     return obstacles
 
 
+def perform_reset(obstacles, pub):
+    """Reset all walkers and publish their initial states."""
+    rospy.loginfo("[RandomWalk] Resetting obstacles to initial positions")
+    for walker in obstacles:
+        walker.reset()
+        # Immediately publish reset positions
+        state = ModelState()
+        state.model_name = walker.name
+        state.reference_frame = 'world'
+        state.pose.position.x = walker.x
+        state.pose.position.y = walker.y
+        state.pose.position.z = walker.z
+        state.pose.orientation = yaw_to_quaternion(walker.yaw)
+        pub.publish(state)
+
 def main():
     rospy.init_node('moving_obstacles_node', anonymous=False)
 
@@ -126,18 +141,7 @@ def main():
 
             # Detect simulation reset (time jump backwards or to near-zero)
             if now < last_sim_time or (now < 1.0 and last_sim_time > 1.0):
-                rospy.loginfo("[RandomWalk] Episode reset detected - resetting obstacles")
-                for walker in obstacles:
-                    walker.reset()
-                    # Immediately publish reset positions
-                    state = ModelState()
-                    state.model_name = walker.name
-                    state.reference_frame = 'world'
-                    state.pose.position.x = walker.x
-                    state.pose.position.y = walker.y
-                    state.pose.position.z = walker.z
-                    state.pose.orientation = yaw_to_quaternion(walker.yaw)
-                    pub.publish(state)
+                perform_reset(obstacles, pub)
                 last_sim_time = now
                 continue
 
@@ -163,7 +167,11 @@ def main():
             rate.sleep()
 
         except rospy.ROSTimeMovedBackwardsException:
-            rospy.logwarn("[RandomWalk] Time moved backwards (sim reset), recovering...")
+            rospy.logwarn("[RandomWalk] Time moved backwards (sim reset), resetting obstacles...")
+            perform_reset(obstacles, pub)
+            # Reset time trackers to avoid huge dt on next loop
+            last_time = rospy.get_time()
+            last_sim_time = last_time
             continue
         except rospy.ROSInterruptException:
             pass

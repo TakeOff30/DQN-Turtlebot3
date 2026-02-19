@@ -5,21 +5,22 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage3_moving_obstacles.launch' # Stage 3 world
     stage: 3
+    model_type: 'dueling_dqn'
 
     # Environment parameters
     running_step: 0.03
     pos_step: 0.01
-    max_episode_steps: 500 # More steps for navigation with obstacles
+    max_episode_steps: 500
 
     # Observations
     new_ranges: 24
-    min_range: 0.19 # Tighter collision threshold
+    min_range: 0.19
     max_laser_value: 3.5
     min_laser_value: 0.0
     n_actions: 5
 
     # Collision detection
-    max_linear_aceleration: 1.2 # More sensitive
+    max_linear_aceleration: 1.2
 
     # Arena boundaries (4x4 meter bounded box)
     arena_min_x: -2.0
@@ -63,15 +64,15 @@ turtlebot3:
     min_spawn_distance: 0.5
     success_threshold: 0.25
 
-    # DQN parameters - Fine-tuning from stage 1
+    # DQN parameters
     gamma: 0.99
-    epsilon_start: 0.3 # Start with partial exploration
+    epsilon_start: 0.5
     epsilon_end: 0.01
-    epsilon_decay: 20000 # Slower decay for obstacle navigation learning
+    epsilon_decay: 20000
     n_episodes: 6000
     batch_size: 128
-    learning_rate: 0.00003 # Lower LR for fine-tuning pretrained weights
-    tau: 0.005 # Soft target update coefficient
+    learning_rate: 0.0003
+    tau: 0.005
     replay_memory_size: 100000
 
     # Reward settings (consistent with stage 1 scale)

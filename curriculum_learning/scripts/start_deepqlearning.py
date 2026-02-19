@@ -25,6 +25,8 @@ from training_logger import TrainingLogger
 from training_reporter import TrainingReporter
 from training_manager import TrainingManager
 from std_msgs.msg import Float32MultiArray
+from models.dqn import DQN
+from models.dueling_dqn import DuelingDQN
 
 class ReplayMemory(object):
 
@@ -40,58 +42,6 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
-
-
-class DuelingDQN(nn.Module):
-    """Dueling DQN: separates Value and Advantage streams for better learning.
-    Reference: Wang et al. 2016, 'Dueling Network Architectures for Deep RL'
-    """
-
-    def __init__(self, inputs, outputs):
-        super(DuelingDQN, self).__init__()
-        
-        # Shared feature extraction
-        self.feature = nn.Sequential(
-            nn.Linear(inputs, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-        )
-        
-        # Value stream: V(s)
-        self.value_stream = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
-        )
-        
-        # Advantage stream: A(s, a)
-        self.advantage_stream = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, outputs)
-        )
-        
-        # He (Kaiming) initialization for ReLU networks
-        self.apply(self._init_weights)
-    
-    @staticmethod
-    def _init_weights(module):
-        if isinstance(module, nn.Linear):
-            nn.init.kaiming_normal_(module.weight, nonlinearity='relu')
-            nn.init.constant_(module.bias, 0)
-
-    def forward(self, x):
-        x = x.to(device)
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-        features = self.feature(x)
-        value = self.value_stream(features)
-        advantage = self.advantage_stream(features)
-        # Q(s,a) = V(s) + A(s,a) - mean(A(s,·))
-        q_values = value + advantage - advantage.mean(dim=1, keepdim=True)
-        return q_values
-
 
 def select_action(state, eps_start, eps_end, eps_decay):
     global steps_done
@@ -210,6 +160,7 @@ if __name__ == '__main__':
     stage = rospy.get_param("/turtlebot3/stage")
     tau = rospy.get_param('/turtlebot3/tau', 0.005)
     replay_memory_size = rospy.get_param('/turtlebot3/replay_memory_size', 100000)
+    model_type = rospy.get_param('/turtlebot3/model_type', 'dueling_dqn')
     
     run_id = f"stage_{stage}_{time.strftime('%Y%m%d-%H%M%S')}"
     run_dir = os.path.join(trained_models_root, run_id)
@@ -237,8 +188,18 @@ if __name__ == '__main__':
          f"Observation {initial_obs} outside declared space {env.observation_space}"
     n_observations = len(initial_obs)
 
-    policy_net = DuelingDQN(n_observations, n_actions).to(device)
-    target_net = DuelingDQN(n_observations, n_actions).to(device)
+    rospy.logwarn(f"Model type {model_type}")
+    if model_type == 'dqn':
+        policy_net = DQN(n_observations, n_actions).to(device)
+        target_net = DQN(n_observations, n_actions).to(device)
+    elif model_type == 'dueling_dqn':
+        policy_net = DuelingDQN(n_observations, n_actions).to(device)
+        target_net = DuelingDQN(n_observations, n_actions).to(device)
+    else:
+        rospy.logerr(f"Unknown model type: {model_type}")
+        env.close()
+        exit(1)
+
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
         

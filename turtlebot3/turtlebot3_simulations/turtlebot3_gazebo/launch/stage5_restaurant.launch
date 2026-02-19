@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- Stage 4: Restaurant-like environment with tables and moving people -->
+  <!-- Stage 5: Restaurant-like environment with tables and moving people -->
   <!-- Robot spawning handled by put_robot_in_world.launch (called by TurtleBot3Env) -->
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
