@@ -8,6 +8,7 @@ from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
 from gazebo_msgs.srv import SpawnModel, DeleteModel, SetModelState
 from gazebo_msgs.msg import ModelState
+from std_msgs.msg import Empty
 import os
 import random
 import math
@@ -142,6 +143,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Inference mode: don't end episode on goal reach, spawn new goal instead
         self.inference_mode = rospy.get_param('/turtlebot3/inference_mode', False)
         self.goals_reached_count = 0
+        self.inference_goal_target_count = rospy.get_param('/turtlebot3/inference_goal_target_count', 3)
+        self.inference_third_goal_x = rospy.get_param('/turtlebot3/inference_third_goal_x', 0.0)
+        self.inference_third_goal_y = rospy.get_param('/turtlebot3/inference_third_goal_y', 2.2)
         
         # Initialize robot position tracking
         self.robot_x = 0.0
@@ -156,11 +160,14 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.wait_for_service('/gazebo/set_model_state')
         self.set_model_state_srv = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         rospy.loginfo("Gazebo service ready")
+
+        # Trigger moving obstacles reset at every episode start (if obstacle node is running)
+        self.reset_moving_obstacles_pub = rospy.Publisher('/moving_obstacles/reset', Empty, queue_size=1)
         
         self._move_goal_marker()
     
     def _set_init_pose(self):
-        # --- Inference-only fixed spawn (configured by inference_final.launch) ---
+        # Inference-only fixed spawn (configured by inference_final.launch) ---
         inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
         use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
 
@@ -292,6 +299,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.fail = False
         self.current_episode_step = 0
         self.goals_reached_count = 0
+
+        # Reset moving cylinder obstacles to their initial waypoint at episode start
+        self.reset_moving_obstacles_pub.publish(Empty())
         
           # In inference mode with fixed pose, reposition robot to fixed start
         inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
@@ -388,15 +398,29 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             if self.inference_mode:
                 # In inference: record goal, spawn new one, keep going
                 self.goals_reached_count += 1
-                if self.goal_reached_reward == 3:
-                    rospy.logwarn("[INFERENCE] Goal reached")
+                rospy.loginfo(
+                    "[INFERENCE] Goal reached (%d/%d)",
+                    self.goals_reached_count,
+                    self.inference_goal_target_count,
+                )
+
+                # End successfully when the target goal count is reached
+                if self.goals_reached_count >= self.inference_goal_target_count:
+                    rospy.loginfo("[INFERENCE] Episode success: target goals reached")
                     return True
-                if self.goals_reached_count == 2:
-                    # position final goal for inference back to the bar table
-                    self.goal_x = 0
-                    self.goal_y = 2.2
+
+                # Ensure the third goal is always in front of the desk (rectangle)
+                if self.goals_reached_count == (self.inference_goal_target_count - 1):
+                    self.goal_x = self.inference_third_goal_x
+                    self.goal_y = self.inference_third_goal_y
+                    rospy.loginfo(
+                        "[INFERENCE] Placing final goal at desk front: (%.2f, %.2f)",
+                        self.goal_x,
+                        self.goal_y,
+                    )
                 else:
                     self._move_goal_marker()
+
                 self._position_goal_marker()
                 dx = self.goal_x - self.robot_x
                 dy = self.goal_y - self.robot_y
@@ -544,7 +568,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 final_ranges.append(self.max_laser_value)
                 final_angles.append(0.0) 
                 
-        return final_ranges, final_angles
+        return raw_front_ranges, raw_front_angles
     
     def _compute_distance_reward(self, current_distance):
         # Positive reward if moving towards goal, negative if moving away
