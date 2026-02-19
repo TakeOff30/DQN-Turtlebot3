@@ -11,4 +11,5 @@ Epsilon End: 0.01
 Epsilon Decay: 20000
 Batch Size: 128
 Soft Update Tau: 0.005
+Learning Rate: 6e-05
 

@@ -1,0 +1,51 @@
+================================================================================
+TURTLEBOT3 DQN INFERENCE REPORT
+================================================================================
+
+INFERENCE CONFIGURATION
+--------------------------------------------------------------------------------
+Model File: best_model_stage5_raw.pth
+Model Type: dueling_dqn
+Evaluation Episodes: 12000
+Device: cpu
+
+EPISODE RESULTS
+--------------------------------------------------------------------------------
+Episode 1/12000 | Goals: 3 | Distance: 10.70m | Steps: 132
+Episode 2/12000 | Goals: 1 | Distance: 5.13m | Steps: 65
+Episode 3/12000 | Goals: 0 | Distance: 1.87m | Steps: 24
+Episode 4/12000 | Goals: 0 | Distance: 2.51m | Steps: 32
+Episode 5/12000 | Goals: 0 | Distance: 5.43m | Steps: 68
+Episode 6/12000 | Goals: 1 | Distance: 2.41m | Steps: 31
+Episode 7/12000 | Goals: 0 | Distance: 0.89m | Steps: 12
+Episode 8/12000 | Goals: 1 | Distance: 11.74m | Steps: 146
+Episode 9/12000 | Goals: 1 | Distance: 9.52m | Steps: 118
+Episode 10/12000 | Goals: 0 | Distance: 1.59m | Steps: 21
+Episode 11/12000 | Goals: 0 | Distance: 2.60m | Steps: 33
+Episode 12/12000 | Goals: 0 | Distance: 1.86m | Steps: 24
+Episode 13/12000 | Goals: 0 | Distance: 0.82m | Steps: 11
+Episode 14/12000 | Goals: 0 | Distance: 0.98m | Steps: 13
+Episode 15/12000 | Goals: 0 | Distance: 0.82m | Steps: 11
+Episode 16/12000 | Goals: 2 | Distance: 7.57m | Steps: 95
+Episode 17/12000 | Goals: 0 | Distance: 0.80m | Steps: 11
+Episode 18/12000 | Goals: 2 | Distance: 13.72m | Steps: 170
+Episode 19/12000 | Goals: 0 | Distance: 1.75m | Steps: 23
+Episode 20/12000 | Goals: 2 | Distance: 6.91m | Steps: 86
+Episode 21/12000 | Goals: 0 | Distance: 0.90m | Steps: 12
+Episode 22/12000 | Goals: 1 | Distance: 7.07m | Steps: 88
+Episode 23/12000 | Goals: 3 | Distance: 14.26m | Steps: 178
+Episode 24/12000 | Goals: 0 | Distance: 2.32m | Steps: 30
+Episode 25/12000 | Goals: 0 | Distance: 5.33m | Steps: 67
+Episode 26/12000 | Goals: 0 | Distance: 0.88m | Steps: 12
+Episode 27/12000 | Goals: 1 | Distance: 6.80m | Steps: 85
+Episode 28/12000 | Goals: 0 | Distance: 0.87m | Steps: 12
+Episode 29/12000 | Goals: 0 | Distance: 0.92m | Steps: 13
+Episode 30/12000 | Goals: 0 | Distance: 7.89m | Steps: 98
+Episode 31/12000 | Goals: 0 | Distance: 2.28m | Steps: 29
+Episode 32/12000 | Goals: 0 | Distance: 2.66m | Steps: 34
+Episode 33/12000 | Goals: 0 | Distance: 4.94m | Steps: 62
+Episode 34/12000 | Goals: 1 | Distance: 4.75m | Steps: 60
+Episode 35/12000 | Goals: 1 | Distance: 8.67m | Steps: 108
+Episode 36/12000 | Goals: 0 | Distance: 3.98m | Steps: 50
+Episode 37/12000 | Goals: 0 | Distance: 1.60m | Steps: 21
+Episode 38/12000 | Goals: 1 | Distance: 11.82m | Steps: 147

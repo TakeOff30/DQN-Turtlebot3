@@ -76,7 +76,7 @@ turtlebot3:
     epsilon_start: 0.3
     epsilon_end: 0.01
     epsilon_decay: 20000
-    n_episodes: 12000
+    n_episodes: 100
     batch_size: 128
     learning_rate: 0.00003
     tau: 0.005
@@ -93,5 +93,8 @@ turtlebot3:
 
     # Checkpoint and Mode Settings
     load_pretrained_model: true
-    checkpoint_file: 'best_model_stage5.pth'
+    checkpoint_file: 'best_model_stage5_raw.pth'
     inference_mode: true
+    inference_goal_target_count: 3
+    inference_third_goal_x: 0.0
+    inference_third_goal_y: 2.2

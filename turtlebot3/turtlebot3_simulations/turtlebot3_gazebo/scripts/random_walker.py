@@ -9,6 +9,7 @@ import math
 import random
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Quaternion
+from std_msgs.msg import Empty
 
 
 class RandomWalker:
@@ -129,6 +130,14 @@ def main():
     obstacles = load_obstacles(default_speed)
     rospy.loginfo(f"[RandomWalk] Controlling {len(obstacles)} obstacles. Speed={default_speed} m/s")
 
+    reset_requested = False
+
+    def handle_episode_reset(_msg):
+        nonlocal reset_requested
+        reset_requested = True
+
+    rospy.Subscriber('/moving_obstacles/reset', Empty, handle_episode_reset, queue_size=1)
+
     rate = rospy.Rate(rate_hz)
     last_time = rospy.get_time()
     last_sim_time = 0.0  # Track sim time for reset detection
@@ -144,6 +153,10 @@ def main():
                 perform_reset(obstacles, pub)
                 last_sim_time = now
                 continue
+
+            if reset_requested:
+                perform_reset(obstacles, pub)
+                reset_requested = False
 
             last_sim_time = now
 
