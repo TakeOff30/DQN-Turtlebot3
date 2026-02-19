@@ -168,14 +168,10 @@ if __name__ == '__main__':
     rospy.loginfo("=" * 50)
 
     episode_goals = []       # goals reached per episode
-    episode_distances = []   # distance traveled per episode
-    episode_steps_list = []  # steps per episode
 
     for i_episode in range(n_eval_episodes):
         rospy.loginfo("\n=== Evaluation Episode %d/%d ===" % (i_episode + 1, n_eval_episodes))
 
-        episode_distance = 0.0
-        previous_odom = None
         done = False
 
         observation = env.reset()
@@ -189,30 +185,11 @@ if __name__ == '__main__':
 
             observation, reward, done, info = env.step(action.item())
 
-            # Track distance traveled
-            try:
-                current_odom = env.unwrapped.get_odom()
-                if previous_odom is not None:
-                    dx = current_odom.pose.pose.position.x - previous_odom.pose.pose.position.x
-                    dy = current_odom.pose.pose.position.y - previous_odom.pose.pose.position.y
-                    episode_distance += math.sqrt(dx ** 2 + dy ** 2)
-                previous_odom = current_odom
-            except (AttributeError, TypeError, RuntimeError):
-                pass
-
             if done:
                 # Retrieve goals reached from the environment
                 goals = getattr(env.unwrapped, 'goals_reached_count', 0)
                 episode_goals.append(goals)
-                episode_distances.append(episode_distance)
-                episode_steps_list.append(t + 1)
-                reporter.append_episode_result(i_episode, n_eval_episodes, goals, episode_distance, t + 1)
-
-                if goals == 3:
-                    rospy.loginfo("✓ Goal reached")
-                else:
-                    rospy.loginfo("✗ No goal reached")
-                rospy.loginfo("Distance: %.2fm  |  Steps: %d" % (episode_distance, t + 1))
+                reporter.append_episode_result(i_episode, n_eval_episodes, goals)
                 break
 
             adapted_observation = adapt_observation(observation, checkpoint_input_dim)
@@ -222,8 +199,6 @@ if __name__ == '__main__':
     successful_episodes = int(numpy.sum(goals_array == 3))
     success_rate = (successful_episodes / n_eval_episodes) * 100.0
     avg_goals = numpy.mean(goals_array) if len(goals_array) > 0 else 0
-    avg_distance = numpy.mean(episode_distances) if episode_distances else 0
-    avg_steps = numpy.mean(episode_steps_list) if episode_steps_list else 0
 
     rospy.loginfo("\n" + "=" * 60)
     rospy.loginfo("EVALUATION COMPLETE")
@@ -231,14 +206,8 @@ if __name__ == '__main__':
     rospy.loginfo("Episodes evaluated       : %d" % n_eval_episodes)
     rospy.loginfo("Success rate             : %.1f%% (%d/%d)" % (success_rate, successful_episodes, n_eval_episodes))
     rospy.loginfo("Average goals per episode: %.2f" % avg_goals)
-    rospy.loginfo("Average distance         : %.2fm" % avg_distance)
-    rospy.loginfo("Average steps            : %.1f" % avg_steps)
-    if len(goals_array) > 0:
-        max_goals = int(numpy.max(goals_array))
-        rospy.loginfo("Goals distribution       : min=%d  median=%d  max=%d" %
-                      (int(numpy.min(goals_array)), int(numpy.median(goals_array)), max_goals))
     rospy.loginfo("=" * 60)
 
-    reporter.write_summary(episode_goals, episode_distances, episode_steps_list, n_eval_episodes)
+    reporter.write_summary(episode_goals, n_eval_episodes)
 
     env.close()
