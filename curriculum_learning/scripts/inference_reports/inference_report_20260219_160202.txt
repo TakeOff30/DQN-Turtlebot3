@@ -1,0 +1,35 @@
+================================================================================
+TURTLEBOT3 DQN INFERENCE REPORT
+================================================================================
+
+INFERENCE CONFIGURATION
+--------------------------------------------------------------------------------
+Model File: best_model_stage1.pth
+Model Type: dueling_dqn
+Evaluation Episodes: 12000
+Device: cpu
+
+EPISODE RESULTS
+--------------------------------------------------------------------------------
+Episode 1/12000 | Goals: 0 | Distance: 4.12m | Steps: 52
+Episode 2/12000 | Goals: 0 | Distance: 4.45m | Steps: 56
+Episode 3/12000 | Goals: 1 | Distance: 1.79m | Steps: 23
+Episode 4/12000 | Goals: 0 | Distance: 0.96m | Steps: 13
+Episode 5/12000 | Goals: 2 | Distance: 8.22m | Steps: 103
+Episode 6/12000 | Goals: 0 | Distance: 0.82m | Steps: 11
+Episode 7/12000 | Goals: 0 | Distance: 3.49m | Steps: 44
+Episode 8/12000 | Goals: 0 | Distance: 0.97m | Steps: 13
+Episode 9/12000 | Goals: 1 | Distance: 2.37m | Steps: 30
+Episode 10/12000 | Goals: 0 | Distance: 0.80m | Steps: 11
+Episode 11/12000 | Goals: 0 | Distance: 0.80m | Steps: 11
+Episode 12/12000 | Goals: 0 | Distance: 1.32m | Steps: 17
+Episode 13/12000 | Goals: 1 | Distance: 2.28m | Steps: 29
+Episode 14/12000 | Goals: 0 | Distance: 0.87m | Steps: 12
+Episode 15/12000 | Goals: 1 | Distance: 6.00m | Steps: 75
+Episode 16/12000 | Goals: 0 | Distance: 1.06m | Steps: 14
+Episode 17/12000 | Goals: 0 | Distance: 0.81m | Steps: 11
+Episode 18/12000 | Goals: 0 | Distance: 0.00m | Steps: 1
+Episode 19/12000 | Goals: 0 | Distance: 0.00m | Steps: 1
+Episode 20/12000 | Goals: 0 | Distance: 0.00m | Steps: 1
+Episode 21/12000 | Goals: 0 | Distance: 0.00m | Steps: 1
+Episode 22/12000 | Goals: 0 | Distance: 0.82m | Steps: 11
