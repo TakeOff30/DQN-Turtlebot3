@@ -13,3 +13,29 @@ Batch Size: 128
 Soft Update Tau: 0.005
 Learning Rate: 6e-05
 
+TRAINING RESULTS
+--------------------------------------------------------------------------------
+Total Training Time: 28:33:39
+Highest Reward Achieved: 337.10
+Overall Score (mean last time steps): 30.02
+
+EPISODE STATISTICS
+--------------------------------------------------------------------------------
+Reward Statistics:
+  Mean: 198.07
+  Std Dev: 144.63
+  Min: -402.74
+  Max: 337.10
+
+Duration Statistics:
+  Mean: 30.02 steps
+  Std Dev: 13.90 steps
+  Min: 1 steps
+  Max: 118 steps
+
+Distance Statistics:
+  Mean: 2.27 meters
+  Std Dev: 1.09 meters
+  Min: 0.00 meters
+  Max: 9.37 meters
+
