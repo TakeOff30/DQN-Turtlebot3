@@ -146,7 +146,6 @@
     </model>
 
     <!-- TABLES: static obstacles placed to create aisles -->
-    <!-- Table size 0.7 x 0.7 with 0.75 height; spacing keeps aisles > 1.4m wide -->
 
     <model name="table_1">
       <static>true</static>

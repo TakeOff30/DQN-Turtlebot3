@@ -399,7 +399,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
     def _compute_directional_weights(self, relative_angles, max_weight=10.0):
         """Compute normalized angular weights that prioritize frontal obstacles.
-
         Obstacles near heading 0 rad receive higher weight than side obstacles.
         """
         # Higher power sharpens emphasis around 0 rad.
@@ -412,7 +411,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
     def _compute_weighted_obstacle_reward(self, front_ranges, front_angles):
         """Compute obstacle penalty using angle-aware weighting and distance decay.
-
         Closer and more frontal obstacles produce stronger negative reward.
         """
         if not front_ranges or not front_angles:
