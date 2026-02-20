@@ -60,11 +60,7 @@ class Window(QMainWindow):
         self.count += 1
         self.rewards.append(msg.data[1])
 
-<<<<<<< HEAD
         # calculate last 20 episodes avarage
-=======
-        # --- CALCOLO MEDIA MOBILE (ultimi 20 episodi) ---
->>>>>>> origin/Nicola
         window_size = 20
         if len(self.rewards) >= window_size:
             avg = sum(self.rewards[-window_size:]) / window_size
