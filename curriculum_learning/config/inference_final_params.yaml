@@ -76,7 +76,11 @@ turtlebot3:
     epsilon_start: 0.3
     epsilon_end: 0.01
     epsilon_decay: 20000
+<<<<<<< Updated upstream
     n_episodes: 12000
+=======
+    n_episodes: 300
+>>>>>>> Stashed changes
     batch_size: 128
     learning_rate: 0.00003
     tau: 0.005
@@ -93,5 +97,9 @@ turtlebot3:
 
     # Checkpoint and Mode Settings
     load_pretrained_model: true
+<<<<<<< Updated upstream
     checkpoint_file: 'best_model_stage5.pth'
+=======
+    checkpoint_file: 'best_model_stage5_dqn.pth'
+>>>>>>> Stashed changes
     inference_mode: true
