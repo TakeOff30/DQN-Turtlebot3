@@ -1,10 +1,12 @@
 turtlebot3:
-    # Stage 4: Restaurant - Larger arena, tables, moving people
+    # Stage 4: Restaurant environment
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage4_restaurant.launch'
     stage: 4
+    model_type: 'dueling_dqn'
+    # model_type: 'dqn'
 
     # Environment parameters
     running_step: 0.04
@@ -12,9 +14,9 @@ turtlebot3:
     max_episode_steps: 700
 
     # Observations
-    new_ranges: 24
+    new_ranges: 24 # Samples 24 laser readings from 360 total
     min_range: 0.19
-    max_laser_value: 4.0
+    max_laser_value: 4.0 # truncates laser reading values
     min_laser_value: 0.0
     n_actions: 5
 
@@ -59,15 +61,19 @@ turtlebot3:
     min_spawn_distance: 0.7
     success_threshold: 0.25
 
-    # DQN parameters - Fine-tuning from stage 3
+    # DQN parameters
     gamma: 0.99
-    epsilon_start: 0.3
+    epsilon_start: 0.5
     epsilon_end: 0.01
-    epsilon_decay: 20000
-    n_episodes: 12000
+    epsilon_decay: 25000
+    n_episodes: 8000
+    avg_reward_window_episodes: 50 # Rolling window size for best-model average reward
+    checkpoint_every_episodes: 500 # Save periodic checkpoint every N episodes
+    target_update: 100 # N.B. unused, right now soft update is implemented
     batch_size: 128
-    learning_rate: 0.00003
-    tau: 0.005
+    min_replay_batches: 15 # Warm-up replay size = batch_size * min_replay_batches
+    learning_rate: 0.0002
+    tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 
     # Reward settings
@@ -80,6 +86,5 @@ turtlebot3:
     courage_zone_threshold: 0.5
 
     # Checkpoint and Mode Settings
-    load_pretrained_model: true
-    checkpoint_file: 'best_model_stage3.pth'
-    inference_mode: false
+    load_pretrained_model: true # Load model weights from checkpoint
+    checkpoint_file: 'best_model_stage3.pth' # File to load from trained_models directory

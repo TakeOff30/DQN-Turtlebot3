@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    
+    <!-- Load stage-specific parameters -->
+<<<<<<<< HEAD:curriculum_learning/launch/start_inference_final.launch
+    <rosparam command="load" file="$(find curriculum_learning)/config/inference_final_params.yaml" />
+========
+    <rosparam command="load" file="$(find curriculum_learning)/config/inference1_params.yaml" />
+>>>>>>>> origin/Nicola:curriculum_learning/launch/start_inference1.launch
+    
+    <!-- Start training script -->
+    <node pkg="curriculum_learning" type="start_deepqinference.py" name="turtlebot3_inference" output="screen"/>
+        <node pkg="curriculum_learning" type="result_graph.py" name="training_results_plotter" output="screen" required="false"> </node> 
+    <node pkg="curriculum_learning" type="action_graph.py" name="action_distribution_plotter" output="screen" required="false"> </node>
+</launch>

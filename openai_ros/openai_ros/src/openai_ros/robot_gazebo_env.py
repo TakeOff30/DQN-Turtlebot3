@@ -126,28 +126,49 @@ class RobotGazeboEnv(gym.Env):
         """Resets a simulation
         """
         rospy.logdebug("RESET SIM START")
-        if self.reset_controls :
+        
+        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
+        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
+        skip_full_reset = inference_mode and use_fixed
+        
+        if self.reset_controls:
             rospy.logdebug("RESET CONTROLLERS")
             self.gazebo.unpauseSim()
             self.controllers_object.reset_controllers()
             self._check_all_systems_ready()
-            self._set_init_pose()
-            self.gazebo.pauseSim()
-            self.gazebo.resetSim()
-            self.gazebo.unpauseSim()
-            self.controllers_object.reset_controllers()
-            self._check_all_systems_ready()
+            
+            if not skip_full_reset:
+                self._set_init_pose()
+                self.gazebo.pauseSim()
+                self.gazebo.resetSim()
+                self.gazebo.unpauseSim()
+                self.controllers_object.reset_controllers()
+                self._check_all_systems_ready()
+            else:
+                # Inference mode: solo riposizionamento, NO full reset
+                rospy.loginfo("[INFERENCE] Skipping full Gazebo reset")
+                self._set_init_pose()  # Riposiziona direttamente
+                self._check_all_systems_ready()
+            
             self.gazebo.pauseSim()
 
         else:
             rospy.logwarn("DONT RESET CONTROLLERS")
             self.gazebo.unpauseSim()
             self._check_all_systems_ready()
-            self._set_init_pose()
-            self.gazebo.pauseSim()
-            self.gazebo.resetSim()
-            self.gazebo.unpauseSim()
-            self._check_all_systems_ready()
+            
+            if not skip_full_reset:
+                self._set_init_pose()
+                self.gazebo.pauseSim()
+                self.gazebo.resetSim()
+                self.gazebo.unpauseSim()
+                self._check_all_systems_ready()
+            else:
+                # Inference mode: solo riposizionamento
+                rospy.loginfo("[INFERENCE] Skipping full Gazebo reset")
+                self._set_init_pose()
+                self._check_all_systems_ready()
+            
             self.gazebo.pauseSim()
 
         rospy.logdebug("RESET SIM END")

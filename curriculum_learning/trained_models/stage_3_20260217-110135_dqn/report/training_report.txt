@@ -1,0 +1,78 @@
+================================================================================
+TURTLEBOT3 DQN TRAINING REPORT
+================================================================================
+
+TRAINING CONFIGURATION
+--------------------------------------------------------------------------------
+Number of Episodes: 3000
+Gamma: 0.99
+Epsilon Start: 0.5
+Epsilon End: 0.01
+Epsilon Decay: 20000
+Batch Size: 128
+Soft Update Tau: 0.005
+Learning Rate: 0.0003
+
+TRAINING RESULTS
+--------------------------------------------------------------------------------
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_3_20260209-142104/report/training_report.txt
+Total Training Time: 49:50:13
+Highest Reward Achieved: 231.58
+Overall Score (mean last time steps): 21.91
+========
+Total Training Time: 09:21:30
+Highest Reward Achieved: 256.55
+Overall Score (mean last time steps): 21.87
+>>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_3_20260217-110135_dqn/report/training_report.txt
+=======
+Total Training Time: 09:21:30
+Highest Reward Achieved: 256.55
+Overall Score (mean last time steps): 21.87
+>>>>>>> Stashed changes
+
+EPISODE STATISTICS
+--------------------------------------------------------------------------------
+Reward Statistics:
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_3_20260209-142104/report/training_report.txt
+  Mean: 86.53
+  Std Dev: 183.89
+  Min: -625.51
+  Max: 231.58
+
+Duration Statistics:
+  Mean: 21.91 steps
+  Std Dev: 13.15 steps
+  Min: 1 steps
+  Max: 415 steps
+
+Distance Statistics:
+  Mean: 1.70 meters
+  Std Dev: 1.06 meters
+  Min: 0.00 meters
+  Max: 33.20 meters
+========
+=======
+>>>>>>> Stashed changes
+  Mean: 117.26
+  Std Dev: 185.97
+  Min: -401.12
+  Max: 256.55
+
+Duration Statistics:
+  Mean: 21.87 steps
+  Std Dev: 10.04 steps
+  Min: 1 steps
+  Max: 109 steps
+
+Distance Statistics:
+  Mean: 1.72 meters
+  Std Dev: 0.83 meters
+  Min: 0.00 meters
+  Max: 8.99 meters
+<<<<<<< Updated upstream
+>>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_3_20260217-110135_dqn/report/training_report.txt
+=======
+>>>>>>> Stashed changes
+

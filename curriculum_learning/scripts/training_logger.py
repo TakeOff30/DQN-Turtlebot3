@@ -12,16 +12,16 @@ class TrainingLogger:
     
     def log_episode_start(self, episode, stage=None):
         stage_info = f" [STAGE {stage}]" if stage is not None else ""
-        rospy.loginfo(f"############### START EPISODE=>{episode}{stage_info}")
+        rospy.loginfo(f"### START EPISODE {episode} {stage_info} ###")
     
     def log_step_start(self, step):
-        rospy.logwarn(f"############### Start Step=>{step}")
+        rospy.logwarn(f"### Step {step} ###")
     
     def log_episode_end(self, episode, gamma, epsilon, reward, distance):
         m, s = divmod(int(time.time() - self.start_time), 60)
         h, m = divmod(m, 60)
         
-        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} ] - "
+        rospy.logerr(f"EP: {episode + 1} - gamma: {round(gamma, 2)} - epsilon: {round(epsilon, 2)}] - "
                     f"Reward: {reward} - Distance: {round(distance, 2)}m - "
                     f"Time: {h-self.last_h:d}:{m-self.last_m:02d}:{s-self.last_s:02d}")
         

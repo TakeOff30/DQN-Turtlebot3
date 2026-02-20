@@ -27,6 +27,7 @@ import rospy
 import math
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Quaternion
+from std_msgs.msg import Empty
 
 
 class WaypointPath:
@@ -119,7 +120,6 @@ def load_obstacles_from_params(default_speed):
             )
         return obstacles
 
-    # -- Fallback: default Stage 3 rectangular paths --
     rospy.loginfo("[MovingObstacles] No ~paths param found, using default Stage 3 paths")
     path1 = WaypointPath([
         (-1.2, -1.2, 0.3),
@@ -143,6 +143,21 @@ def load_obstacles_from_params(default_speed):
     ]
 
 
+def publish_obstacles_at_path_time(pub, obstacles, path_time):
+    for model_name, path in obstacles:
+        x, y, z, yaw = path.get_pose(path_time)
+
+        state = ModelState()
+        state.model_name = model_name
+        state.reference_frame = 'world'
+        state.pose.position.x = x
+        state.pose.position.y = y
+        state.pose.position.z = z
+        state.pose.orientation = yaw_to_quaternion(yaw)
+
+        pub.publish(state)
+
+
 def main():
     rospy.init_node('moving_obstacles_node', anonymous=False)
 
@@ -152,6 +167,17 @@ def main():
     pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
     obstacles = load_obstacles_from_params(default_speed)
+
+    path_time_offset = 0.0
+
+    def handle_reset(_msg):
+        nonlocal path_time_offset
+        now = rospy.get_time()
+        path_time_offset = now
+        publish_obstacles_at_path_time(pub, obstacles, 0.0)
+        rospy.loginfo("[MovingObstacles] Episode reset received, obstacles reset to initial waypoints")
+
+    rospy.Subscriber('/moving_obstacles/reset', Empty, handle_reset, queue_size=1)
 
     rate = rospy.Rate(rate_hz)
     last_sim_time = 0.0
@@ -177,18 +203,8 @@ def main():
 
             last_sim_time = now
 
-            for model_name, path in obstacles:
-                x, y, z, yaw = path.get_pose(now)
-
-                state = ModelState()
-                state.model_name = model_name
-                state.reference_frame = 'world'
-                state.pose.position.x = x
-                state.pose.position.y = y
-                state.pose.position.z = z
-                state.pose.orientation = yaw_to_quaternion(yaw)
-
-                pub.publish(state)
+            path_time = now - path_time_offset
+            publish_obstacles_at_path_time(pub, obstacles, path_time)
 
             rate.sleep()
 

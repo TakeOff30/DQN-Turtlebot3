@@ -1,25 +1,27 @@
 turtlebot3:
-    # Stage 1: Empty environment - Focus on basic goal navigation
+    # Stage 1: Empty environment
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
-    launch_file_name: 'stage1_empty.launch' # Stage 1 world
+    launch_file_name: 'stage1_empty.launch'
     stage: 1
+    # model_type: 'dueling_dqn'
+    model_type: 'dqn'
 
     # Environment parameters
     running_step: 0.02
     pos_step: 0.01
-    max_episode_steps: 300 # Shorter episodes for faster learning
+    max_episode_steps: 300
 
-    # Observations (24 laser readings + 2 goal coordinates)
-    new_ranges: 24 # Samples 24 laser readings from 360 total (every 15th reading)
-    min_range: 0.18 # More permissive for stage 1
-    max_laser_value: 3.5
+    # Observations
+    new_ranges: 24 # Samples 24 laser readings from 360 total
+    min_range: 0.18
+    max_laser_value: 3.5 # truncates laser reading values
     min_laser_value: 0.0
     n_actions: 5
 
     # Collision detection
-    max_linear_aceleration: 1.5 # Relaxed for empty environment
+    max_linear_aceleration: 1.5
 
     # Arena boundaries (3x3 meter bounded box)
     arena_min_x: -2.0
@@ -27,24 +29,26 @@ turtlebot3:
     arena_min_y: -2.0
     arena_max_y: 2.0
 
-    # Safe goal spawning boundaries (accounts for 0.2m wall thickness + safety margin)
-    # Goals spawn within these boundaries to ensure they're accessible
+    # Safe goal spawning boundaries
     safe_arena_min_x: -1.0
     safe_arena_max_x: 1.0
     safe_arena_min_y: -1.0
     safe_arena_max_y: 1.0
     min_spawn_distance: 0.5 # Minimum distance between robot and goal spawn
-    success_threshold: 0.25 # Distance to consider goal reached (meters)
+    success_threshold: 0.25 # Distance to consider goal reached
 
     # DQN parameters
     gamma: 0.99
     epsilon_start: 1
     epsilon_end: 0.01
-    epsilon_decay: 50000
-    n_episodes: 3000
-    target_update: 100 # unused (soft updates via tau)
+    epsilon_decay: 15000
+    n_episodes: 1000
+    avg_reward_window_episodes: 50 # Rolling window size for best-model average reward
+    checkpoint_every_episodes: 500 # Save periodic checkpoint every N episodes
+    target_update: 100 # N.B. unused, right now soft update is implemented
     batch_size: 128
-    learning_rate: 0.0001
+    min_replay_batches: 15 # Warm-up replay size = batch_size * min_replay_batches
+    learning_rate: 0.0007
     tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 
@@ -58,6 +62,5 @@ turtlebot3:
     courage_zone_threshold: 0.5
 
     # Checkpoint and Mode Settings
-    load_pretrained_model: false # Load model weights from checkpoint (starts training from episode 0)
+    load_pretrained_model: false # Load model weights from checkpoint
     checkpoint_file: 'checkpoint_model_stage1_20260202_225615.pth' # File to load from trained_models directory
-    inference_mode: false # Set to true for evaluation only (no training)
