@@ -89,6 +89,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.obstacle_hit_penalty = rospy.get_param('/turtlebot3/obstacle_hit_penalty', -100)
         self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
         self.yaw_reward_multiplier = rospy.get_param('/turtlebot3/yaw_reward_multiplier', 5)
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/Nicola
 
         laser_scan = self.get_laser_scan()
         
@@ -98,12 +102,20 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.loginfo(f"Laser readings: {total_laser_readings} total, sampling every {self.new_ranges}th = {num_laser_readings} readings")
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
         num_laser_readings = len(laser_ranges)
+<<<<<<< HEAD
+=======
+        # Calculate max possible distance within arena
+>>>>>>> origin/Nicola
         
         # Calculate max possible distance within arena
         self.max_goal_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
                                            (self.arena_max_y - self.arena_min_y)**2)
         
+<<<<<<< HEAD
         # declare bservation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
+=======
+        # Observation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
+>>>>>>> origin/Nicola
         laser_high = numpy.full((num_laser_readings,), self.max_laser_value, dtype=numpy.float32)
         laser_low = numpy.full((num_laser_readings,), self.min_laser_value, dtype=numpy.float32)
         obs_high = numpy.concatenate([laser_high, 
@@ -112,6 +124,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                                      numpy.array([0.0, -1.0, -1.0], dtype=numpy.float32)])
         
         obs_dim = num_laser_readings + 3  # laser + [distance_to_goal, sin(angle), cos(angle)]
+<<<<<<< HEAD
+=======
+        # Observation space includes goal coordinates
+>>>>>>> origin/Nicola
         self.observation_space = spaces.Box(obs_low, obs_high, shape=(obs_dim,), dtype=numpy.float32)
 
         rospy.logdebug(f"ACTION SPACES TYPE {str(self.action_space)}")
@@ -119,6 +135,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.cumulated_steps = 0.0
         
+<<<<<<< HEAD
         # in inference mode we end episode on third goal reached
         self.inference_mode = rospy.get_param('/turtlebot3/inference_mode', False)
         self.use_fixed_initial_pose = rospy.get_param('/turtlebot3/use_fixed_initial_pose', False)
@@ -131,6 +148,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.inference_goal_target_count = rospy.get_param('/turtlebot3/inference_goal_target_count', 3)
         self.inference_third_goal_x = rospy.get_param('/turtlebot3/inference_third_goal_x', 0.0)
         self.inference_third_goal_y = rospy.get_param('/turtlebot3/inference_third_goal_y', 2.2)
+=======
+        # Inference mode: don't end episode on goal reach, spawn new goal instead
+        self.inference_mode = rospy.get_param('/turtlebot3/inference_mode', False)
+        self.goals_reached_count = 0
+>>>>>>> origin/Nicola
         
         # Initialize robot position tracking
         self.robot_x = 0.0
@@ -139,15 +161,19 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.previous_distance_to_goal = None
         self.succeed = False
         self.fail = False
+<<<<<<< HEAD
         self._last_min_laser_value = None
         self._last_front_ranges = []
         self._last_front_angles = []
+=======
+>>>>>>> origin/Nicola
         
         # Wait for Gazebo service to move goal marker
         rospy.loginfo("Waiting for Gazebo set_model_state service...")
         rospy.wait_for_service('/gazebo/set_model_state')
         self.set_model_state_srv = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         rospy.loginfo("Gazebo service ready")
+<<<<<<< HEAD
 
         # Trigger moving obstacles reset at every episode start (if obstacle node is running)
         self.reset_moving_obstacles_pub = rospy.Publisher('/moving_obstacles/reset', Empty, queue_size=1)
@@ -192,6 +218,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def _move_goal_marker(self):
         """Move the existing goal marker to a new position using SetModelState"""
         angle = random.uniform(0, 2 * math.pi)  # Random direction angle
+=======
+        
+        self._move_goal_marker()
+        
+
+    def _move_goal_marker(self):
+        """Move the existing goal marker to a new position using SetModelState"""
+        angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
+>>>>>>> origin/Nicola
         distance = 1.0  # Fixed 1 meter distance in any direction
         
         if self.goal_positions:
@@ -204,11 +239,22 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             # Clamp to safe arena boundaries
             self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
             self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
+<<<<<<< HEAD
 
         self._update_goal_distance_reference()
     
     def _position_goal_marker(self):
         """Move the goal marker to new position in Gazebo"""
+=======
+        
+        # Calculate actual distance to goal (after clamping)
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+    
+    def _position_goal_marker(self):
+        # Move the goal marker to new position in Gazebo
+>>>>>>> origin/Nicola
         try:
             model_state = ModelState()
             model_state.model_name = 'goal_marker'
@@ -247,11 +293,13 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         of an episode. Generates random goal position within arena bounds.
         :return:
         """
+        
         # Reset episode tracking
         self.succeed = False
         self.fail = False
         self.current_episode_step = 0
         self.goals_reached_count = 0
+<<<<<<< HEAD
 
         # Reset moving cylinder obstacles to their initial waypoint at episode start
         self.reset_moving_obstacles_pub.publish(Empty())
@@ -268,6 +316,16 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self._move_goal_marker()  # Generate new random goal each episode
         self._position_goal_marker()  # Place marker in Gazebo
         self._update_goal_distance_reference()
+=======
+        
+        self._update_robot_position()
+        self._move_goal_marker()  # Generate new random goal each episode
+        self._position_goal_marker()  # Place marker in Gazebo
+        
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx*dx + dy*dy)
+>>>>>>> origin/Nicola
 
     def _set_action(self, action):
         """
@@ -295,11 +353,15 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self._update_robot_position()
         laser_scan = self.get_laser_scan()
 
+<<<<<<< HEAD
         valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0)]
         self._last_min_laser_value = min(valid_ranges) if len(valid_ranges) > 0 else None
 
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
         self._last_front_ranges, self._last_front_angles = laser_ranges, _
+=======
+        laser_ranges, _ = self._compute_laser_scans(laser_scan)
+>>>>>>> origin/Nicola
         # Calculate relative goal information
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
@@ -314,8 +376,18 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Apply normalization
         laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
         dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
+<<<<<<< HEAD
         
         full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
+=======
+        # angle_norm = goal_angle / math.pi
+        
+        # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
+        # full_observations = laser_norm + [dist_norm, angle_norm]
+        full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
+        # full_observations = laser_ranges + [distance_to_goal, goal_angle]
+        # full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
+>>>>>>> origin/Nicola
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
@@ -324,6 +396,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             return True
         if self._is_succeded():
             if self.inference_mode:
+<<<<<<< HEAD
                 # In inference end at third episode reached
                 self.goals_reached_count += 1
                 rospy.loginfo(
@@ -351,6 +424,16 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
                 self._position_goal_marker()
                 self._update_goal_distance_reference()
+=======
+                # In inference: record goal, spawn new one, keep going
+                self.goals_reached_count += 1
+                rospy.loginfo("[INFERENCE] Goals reached this episode: %d" % self.goals_reached_count)
+                self._move_goal_marker()
+                self._position_goal_marker()
+                dx = self.goal_x - self.robot_x
+                dy = self.goal_y - self.robot_y
+                self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+>>>>>>> origin/Nicola
                 self.succeed = False
                 return False
             return True
@@ -364,8 +447,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         3. Maximum steps exceeded
         """
 
+<<<<<<< HEAD
         # Reuse laser data cached in _get_obs() for this step.
         if self._last_min_laser_value is None:
+=======
+        laser_scan = self.get_laser_scan()
+        
+        # Filter out invalid readings (inf, nan, 0)
+        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0)]
+        
+        if len(valid_ranges) == 0:
+>>>>>>> origin/Nicola
             rospy.logwarn("No valid laser readings!")
             return False
         min_laser_value = self._last_min_laser_value
@@ -410,22 +502,29 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return normalized_weights
     
     def _compute_weighted_obstacle_reward(self, front_ranges, front_angles):
+<<<<<<< HEAD
         """Compute obstacle penalty using angle-aware weighting and distance decay.
         Closer and more frontal obstacles produce stronger negative reward.
         """
+=======
+>>>>>>> origin/Nicola
         if not front_ranges or not front_angles:
             return 0.0
 
         front_ranges = numpy.array(front_ranges)
         front_angles = numpy.array(front_angles)
 
+<<<<<<< HEAD
         # Only consider obstacles within a local danger radius.
+=======
+>>>>>>> origin/Nicola
         valid_mask = front_ranges <= 0.5
         if not numpy.any(valid_mask):
             return 0.0
 
         front_ranges = front_ranges[valid_mask]
         front_angles = front_angles[valid_mask]
+<<<<<<< HEAD
 
         relative_angles = numpy.unwrap(front_angles)
         relative_angles[relative_angles > numpy.pi] -= 2 * numpy.pi
@@ -441,17 +540,33 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         weighted_decay = numpy.dot(weights, decay)
 
         # Base penalty with extra scaling by weighted proximity risk.
+=======
+
+        relative_angles = numpy.unwrap(front_angles)
+        relative_angles[relative_angles > numpy.pi] -= 2 * numpy.pi
+
+        weights = self._compute_directional_weights(relative_angles, max_weight=10.0)
+
+        safe_dists = numpy.clip(front_ranges - 0.25, 1e-2, 3.5)
+        decay = numpy.exp(-3.0 * safe_dists)
+
+        weighted_decay = numpy.dot(weights, decay)
+
+>>>>>>> origin/Nicola
         reward = - (1.0 + 4.0 * weighted_decay)
 
         return reward
     
     def _compute_laser_scans(self, observations):
+<<<<<<< HEAD
         """
         Computes laser scans and performs min-pooling:
         - considers only 180 laser scans pointing in front of the robot.
         - chunks in 24 groups and takes the minimum, more significant, value
         Reduces input state dimension and training convergence
         """
+=======
+>>>>>>> origin/Nicola
         target_ray_count = self.new_ranges
         
         num_of_lidar_rays = len(observations.ranges)
@@ -483,7 +598,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         if len(raw_front_ranges) < target_ray_count:
             return [self.max_laser_value] * target_ray_count, [0.0] * target_ray_count
 
+<<<<<<< HEAD
         # Min-Pooling
+=======
+        # 2. Min-Pooling
+>>>>>>> origin/Nicola
         chunk_size = int(len(raw_front_ranges) / target_ray_count)
         
         final_ranges = []
@@ -508,10 +627,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 final_ranges.append(self.max_laser_value)
                 final_angles.append(0.0) 
                 
+<<<<<<< HEAD
         return raw_front_ranges, raw_front_angles
     
     def _compute_distance_reward(self, current_distance):
         """ Gives positive reward if moving towards goal, negative if moving away """
+=======
+        return final_ranges, final_angles
+    
+    def _compute_distance_reward(self, current_distance):
+        # Positive reward if moving towards goal, negative if moving away
+>>>>>>> origin/Nicola
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
             distance_reward = distance_delta * self.distance_reward_multiplier
@@ -523,7 +649,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return distance_reward
     
     def _compute_reward(self, observations, done):
+<<<<<<< HEAD
         """Computes cumulated reward"""
+=======
+>>>>>>> origin/Nicola
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         current_distance = math.sqrt(dx**2 + dy**2)
@@ -546,6 +675,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # Heading alignment: cos(angle) gives +1 facing goal, -1 facing away
         heading_reward = math.cos(goal_angle) * self.yaw_reward_multiplier
+<<<<<<< HEAD
 
         # Reuse front-sector scan data cached in _get_obs() for this step.
         obstacle_penalty = self._compute_weighted_obstacle_reward(
@@ -563,6 +693,23 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         time_pen = self.time_penalty
         
+=======
+        
+        laser_scan = self.get_laser_scan()
+        front_ranges, front_angles = self._compute_laser_scans(laser_scan)
+        obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
+        
+        # Reduce penalty near goal
+        if current_distance < self.courage_zone_threshold:
+            penalty_scale = max(0.2, current_distance / self.courage_zone_threshold)
+            obstacle_penalty *= penalty_scale
+
+        # penalize angular velocity magnitude
+        turn_penalty = -self.turn_penalty_multiplier * abs(self.angular_speed)
+        
+        time_pen = self.time_penalty
+        
+>>>>>>> origin/Nicola
         reward = distance_reward + heading_reward + obstacle_penalty + turn_penalty + time_pen
         
         rospy.logdebug("Reward: dist=%.2f head=%.2f obs=%.2f turn=%.2f time=%.2f total=%.2f" %

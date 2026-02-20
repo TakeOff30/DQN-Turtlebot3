@@ -1,27 +1,47 @@
 turtlebot3:
+<<<<<<< HEAD
     # Stage 2: Static obstacles
+=======
+    # Stage 2: Static obstacles - Learn obstacle avoidance (transfer from stage 1)
+>>>>>>> origin/Nicola
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage2_static_obstacles.launch' # Stage 2 world
     stage: 2
+<<<<<<< HEAD
     model_type: 'dueling_dqn'
     # model_type: 'dqn'
+=======
+>>>>>>> origin/Nicola
 
     # Environment parameters
     running_step: 0.03
     pos_step: 0.01
+<<<<<<< HEAD
     max_episode_steps: 400
 
     # Observations
     new_ranges: 24 # Samples 24 laser readings from 360 total
     min_range: 0.19
     max_laser_value: 3.5 # truncates laser reading values
+=======
+    max_episode_steps: 400 # More steps for navigation with obstacles
+
+    # Observations
+    new_ranges: 24
+    min_range: 0.19 # Tighter collision threshold
+    max_laser_value: 3.5
+>>>>>>> origin/Nicola
     min_laser_value: 0.0
     n_actions: 5
 
     # Collision detection
+<<<<<<< HEAD
     max_linear_aceleration: 1.2
+=======
+    max_linear_aceleration: 1.2 # More sensitive
+>>>>>>> origin/Nicola
 
     # Arena boundaries (4x4 meter bounded box)
     arena_min_x: -2.0
@@ -65,6 +85,7 @@ turtlebot3:
     min_spawn_distance: 0.5
     success_threshold: 0.25
 
+<<<<<<< HEAD
     # DQN parameters
     gamma: 0.99
     epsilon_start: 0.7
@@ -81,6 +102,20 @@ turtlebot3:
     replay_memory_size: 100000
 
     # Reward settings
+=======
+    # DQN parameters - Fine-tuning from stage 1
+    gamma: 0.99
+    epsilon_start: 0.5 # Start with partial exploration (transfer from stage 1)
+    epsilon_end: 0.01
+    epsilon_decay: 30000 # Slower decay for obstacle navigation learning
+    n_episodes: 4000
+    batch_size: 128
+    learning_rate: 0.00005 # Lower LR for fine-tuning pretrained weights
+    tau: 0.005 # Soft target update coefficient
+    replay_memory_size: 100000
+
+    # Reward settings (consistent with stage 1 scale)
+>>>>>>> origin/Nicola
     distance_reward_multiplier: 20.0
     turn_penalty_multiplier: 0.3
     yaw_reward_multiplier: 2.0
@@ -89,6 +124,13 @@ turtlebot3:
     obstacle_hit_penalty: -200
     courage_zone_threshold: 0.5
 
+<<<<<<< HEAD
     # Checkpoint and Mode Settings
     load_pretrained_model: true # Load model weights from checkpoint
     checkpoint_file: 'best_model_stage1.pth' # File to load from trained_models directory
+=======
+    # Checkpoint and Mode Settings - Load from stage 1
+    load_pretrained_model: true
+    checkpoint_file: 'best_model_stage1.pth'
+    inference_mode: false
+>>>>>>> origin/Nicola
