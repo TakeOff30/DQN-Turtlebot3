@@ -15,6 +15,7 @@ Learning Rate: 0.0003
 
 TRAINING RESULTS
 --------------------------------------------------------------------------------
+<<<<<<< Updated upstream
 <<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_3_20260209-142104/report/training_report.txt
 Total Training Time: 49:50:13
 Highest Reward Achieved: 231.58
@@ -24,10 +25,16 @@ Total Training Time: 09:21:30
 Highest Reward Achieved: 256.55
 Overall Score (mean last time steps): 21.87
 >>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_3_20260217-110135_dqn/report/training_report.txt
+=======
+Total Training Time: 09:21:30
+Highest Reward Achieved: 256.55
+Overall Score (mean last time steps): 21.87
+>>>>>>> Stashed changes
 
 EPISODE STATISTICS
 --------------------------------------------------------------------------------
 Reward Statistics:
+<<<<<<< Updated upstream
 <<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_3_20260209-142104/report/training_report.txt
   Mean: 86.53
   Std Dev: 183.89
@@ -46,6 +53,8 @@ Distance Statistics:
   Min: 0.00 meters
   Max: 33.20 meters
 ========
+=======
+>>>>>>> Stashed changes
   Mean: 117.26
   Std Dev: 185.97
   Min: -401.12
@@ -62,5 +71,8 @@ Distance Statistics:
   Std Dev: 0.83 meters
   Min: 0.00 meters
   Max: 8.99 meters
+<<<<<<< Updated upstream
 >>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_3_20260217-110135_dqn/report/training_report.txt
+=======
+>>>>>>> Stashed changes
 

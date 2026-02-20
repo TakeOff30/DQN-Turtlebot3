@@ -4,6 +4,7 @@ TURTLEBOT3 DQN TRAINING REPORT
 
 TRAINING CONFIGURATION
 --------------------------------------------------------------------------------
+<<<<<<< Updated upstream
 <<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_2_20260208-225334/report/training_report.txt
 Number of Episodes: 500
 ========
@@ -17,12 +18,20 @@ Epsilon Decay: 5000
 ========
 Epsilon Decay: 25000
 >>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_4_20260218-082200_dqn/report/training_report.txt
+=======
+Number of Episodes: 5000
+Gamma: 0.99
+Epsilon Start: 0.5
+Epsilon End: 0.01
+Epsilon Decay: 25000
+>>>>>>> Stashed changes
 Batch Size: 128
 Soft Update Tau: 0.005
 Learning Rate: 0.0002
 
 TRAINING RESULTS
 --------------------------------------------------------------------------------
+<<<<<<< Updated upstream
 <<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_2_20260208-225334/report/training_report.txt
 Total Training Time: 11:51:01
 Highest Reward Achieved: 230.97
@@ -32,10 +41,16 @@ Total Training Time: 12:41:15
 Highest Reward Achieved: 317.28
 Overall Score (mean last time steps): 29.28
 >>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_4_20260218-082200_dqn/report/training_report.txt
+=======
+Total Training Time: 12:41:15
+Highest Reward Achieved: 317.28
+Overall Score (mean last time steps): 29.28
+>>>>>>> Stashed changes
 
 EPISODE STATISTICS
 --------------------------------------------------------------------------------
 Reward Statistics:
+<<<<<<< Updated upstream
 <<<<<<<< Updated upstream:curriculum_learning/trained_models/stage_2_20260208-225334/report/training_report.txt
   Mean: 140.19
   Std Dev: 149.18
@@ -54,6 +69,8 @@ Distance Statistics:
   Min: 0.00 meters
   Max: 9.92 meters
 ========
+=======
+>>>>>>> Stashed changes
   Mean: 160.63
   Std Dev: 179.40
   Min: -545.69
@@ -70,5 +87,8 @@ Distance Statistics:
   Std Dev: 1.17 meters
   Min: 0.00 meters
   Max: 13.65 meters
+<<<<<<< Updated upstream
 >>>>>>>> Stashed changes:curriculum_learning/trained_models/stage_4_20260218-082200_dqn/report/training_report.txt
+=======
+>>>>>>> Stashed changes
 
