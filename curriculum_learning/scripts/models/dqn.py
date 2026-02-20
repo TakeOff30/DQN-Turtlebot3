@@ -14,10 +14,6 @@ class DQN(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
-        )
-        
-        # Q-value stream
-        self.fc = nn.Sequential(
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, outputs)
@@ -32,7 +28,6 @@ class DQN(nn.Module):
             nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
-        # Determine device from model parameters
         device = next(self.parameters()).device
         x = x.to(device)
         
@@ -40,5 +35,4 @@ class DQN(nn.Module):
             x = x.unsqueeze(0)
             
         features = self.feature(x)
-        q_values = self.fc(features)
-        return q_values
+        return features

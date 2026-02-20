@@ -29,13 +29,13 @@ class DuelingDQN(nn.Module):
             nn.ReLU(),
             nn.Linear(128, outputs)
         )
-        
-        # He (Kaiming) initialization for ReLU networks
+
         self.apply(self._init_weights)
     
     @staticmethod
     def _init_weights(module):
         if isinstance(module, nn.Linear):
+            # He (Kaiming) initialization
             nn.init.kaiming_normal_(module.weight, nonlinearity='relu')
             nn.init.constant_(module.bias, 0)
 

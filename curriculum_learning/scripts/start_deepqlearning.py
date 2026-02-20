@@ -153,6 +153,9 @@ if __name__ == '__main__':
     epsilon_decay = rospy.get_param("/turtlebot3/epsilon_decay")
     n_episodes = rospy.get_param("/turtlebot3/n_episodes")
     batch_size = rospy.get_param("/turtlebot3/batch_size")
+    min_replay_batches = rospy.get_param("/turtlebot3/min_replay_batches", 15)
+    avg_reward_window_episodes = rospy.get_param("/turtlebot3/avg_reward_window_episodes", 50)
+    checkpoint_every_episodes = rospy.get_param("/turtlebot3/checkpoint_every_episodes", 500)
     lr = rospy.get_param("/turtlebot3/learning_rate", 0.0001)
     running_step = rospy.get_param("/turtlebot3/running_step")
     resume_training = rospy.get_param("/turtlebot3/load_pretrained_model", False)
@@ -205,12 +208,13 @@ if __name__ == '__main__':
         
     optimizer = optim.Adam(policy_net.parameters(), lr=lr)
     memory = ReplayMemory(replay_memory_size)
+    
     episode_durations = []
     steps_done = 0
     start_episode = 0
     loss_values = []
     last_loss_value = None
-    last_rewards = deque([], maxlen=50)
+    last_rewards = deque([], maxlen=avg_reward_window_episodes)
     max_avg_reward = 0
     
     checkpoint_manager = CheckpointManager(models_dir)
@@ -220,7 +224,6 @@ if __name__ == '__main__':
     
     reporter.write_header()
     reporter.write_configuration(n_episodes, gamma, epsilon_start, epsilon_end, epsilon_decay, batch_size, tau, lr)
-
     
     if resume_training:
         checkpoint_path = os.path.join(trained_models_root, checkpoint_file)
@@ -233,9 +236,8 @@ if __name__ == '__main__':
         max_avg_reward = checkpoint_manager.load_checkpoint(checkpoint_path, policy_net, target_net)
     
     # Warm-start replay memory before training
-    MIN_REPLAY_SIZE = batch_size * 15
+    MIN_REPLAY_SIZE = batch_size * min_replay_batches
     rospy.logwarn("=== START WARM UP ===")
-    
     warm_start_obs = env.reset()
     warm_start_state = torch.tensor(warm_start_obs, device=device, dtype=torch.float)
 
@@ -285,7 +287,7 @@ if __name__ == '__main__':
             
             cumulated_reward += reward
             
-            # Prepare and publish data for action_graph.py
+            # publish data for action_graph
             # Format expected: [action_index, ..., total_reward, step_reward]
             action_msg = Float32MultiArray()
             action_msg.data = [float(action.item()), float(cumulated_reward), float(reward)]
@@ -308,7 +310,6 @@ if __name__ == '__main__':
             else:
                 next_state = torch.tensor(observation, device=device, dtype=torch.float)
 
-            # Store the transition in memory
             memory.push(state, action, next_state, reward)
 
             optimize_model(batch_size, gamma, tau)
@@ -350,25 +351,24 @@ if __name__ == '__main__':
                 
 
         result_msg = Float32MultiArray()
-        # Send epsilon value
+        # publish epsilon value to result graph
         result_msg.data = [float(avg_max_q), float(cumulated_reward), float(current_eps)]
         result_pub.publish(result_msg)
         if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
         last_rewards.append(cumulated_reward)
         
-        # Save best model when we have at least 50 episodes and current average beats historical best
-        if len(last_rewards) == 50:
+        # Save best model based on rolling average reward window
+        if len(last_rewards) == avg_reward_window_episodes:
             current_avg_reward = numpy.mean(last_rewards)
             if current_avg_reward > max_avg_reward:
                 max_avg_reward = current_avg_reward
                 best_policy = policy_net
                 final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"best_model_stage{stage}", timestamp=False)
                 rospy.loginfo(f"New best model saved! Avg reward: {max_avg_reward:.2f}")
-
         
         # Save periodic checkpoints
-        if (i_episode + 1) % 500 == 0:
+        if (i_episode + 1) % checkpoint_every_episodes == 0:
             plot_filename = training_manager.save_checkpoint_plots(i_episode)
             training_time = time.time() - logger.start_time
             final_model_path = checkpoint_manager.save_final_model(policy_net, max_avg_reward, f"checkpoint_model_stage{stage}")

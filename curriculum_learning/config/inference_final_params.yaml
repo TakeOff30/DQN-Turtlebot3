@@ -1,9 +1,12 @@
 turtlebot3:
+    # Inference: Final evaluation environment
+
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'inference_final.launch'
     stage: 4
     model_type: 'dueling_dqn'
+    # model_type: 'dqn'
 
     # Environment parameters
     running_step: 0.04
@@ -11,9 +14,9 @@ turtlebot3:
     max_episode_steps: 1500
 
     # Observations
-    new_ranges: 24
+    new_ranges: 24 # Samples 24 laser readings from 360 total
     min_range: 0.19
-    max_laser_value: 4.0
+    max_laser_value: 4.0 # truncates laser reading values
     min_laser_value: 0.0
     n_actions: 5
 
@@ -71,15 +74,16 @@ turtlebot3:
     min_spawn_distance: 0.7
     success_threshold: 0.25
 
-    # DQN parameters - Fine-tuning from stage 3
+    # DQN parameters
     gamma: 0.99
     epsilon_start: 0.3
     epsilon_end: 0.01
     epsilon_decay: 20000
-    n_episodes: 100
+    n_episodes: 300
+    target_update: 100 # N.B. unused, right now soft update is implemented
     batch_size: 128
     learning_rate: 0.00003
-    tau: 0.005
+    tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 
     # Reward settings
@@ -92,8 +96,8 @@ turtlebot3:
     courage_zone_threshold: 0.5
 
     # Checkpoint and Mode Settings
-    load_pretrained_model: true
-    checkpoint_file: 'best_model_stage5_raw.pth'
+    load_pretrained_model: true # Load model weights from checkpoint
+    checkpoint_file: 'best_model_stage5_raw.pth' # File to load from trained_models directory
     inference_mode: true
     inference_goal_target_count: 3
     inference_third_goal_x: 0.0

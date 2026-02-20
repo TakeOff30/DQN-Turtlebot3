@@ -50,7 +50,7 @@ class RandomWalker:
         next_x = self.x + dx
         next_y = self.y + dy
 
-        # Boundary checks (Bouncing)
+        # Boundary checks
         if next_x < -self.limit or next_x > self.limit:
             next_x = max(-self.limit, min(self.limit, next_x))
             self.yaw = math.pi - self.yaw # Reflect across X-axis
@@ -89,7 +89,6 @@ def load_obstacles(default_speed):
             else:
                 start_pos = (0, 0, 0.3)
             
-            # Use param speed if specific, else default
             spd = obs_def.get('speed', default_speed)
             obstacles.append(RandomWalker(name, start_pos, spd))
     else:
@@ -105,7 +104,6 @@ def perform_reset(obstacles, pub):
     rospy.loginfo("[RandomWalk] Resetting obstacles to initial positions")
     for walker in obstacles:
         walker.reset()
-        # Immediately publish reset positions
         state = ModelState()
         state.model_name = walker.name
         state.reference_frame = 'world'
@@ -118,13 +116,9 @@ def perform_reset(obstacles, pub):
 def main():
     rospy.init_node('moving_obstacles_node', anonymous=False)
 
-    # Global speed setting (can be overridden by params)
     default_speed = rospy.get_param('~obstacle_speed', 0.1) 
     rate_hz = rospy.get_param('~update_rate', 30)
 
-    # Use a TOPIC publisher instead of a service call.
-    # Publishing is non-blocking and more robust during rapid pause/unpause
-    # cycles that happen every training step.
     pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
     obstacles = load_obstacles(default_speed)

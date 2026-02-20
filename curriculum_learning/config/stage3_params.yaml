@@ -1,11 +1,12 @@
 turtlebot3:
-    # Stage 3: Moving obstacles - Master dynamic environments
+    # Stage 3: Moving obstacles
 
     task_and_robot_environment_name: 'TurtleBot3World-v0'
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage3_moving_obstacles.launch' # Stage 3 world
     stage: 3
     model_type: 'dueling_dqn'
+    # model_type: 'dqn'
 
     # Environment parameters
     running_step: 0.03
@@ -13,9 +14,9 @@ turtlebot3:
     max_episode_steps: 500
 
     # Observations
-    new_ranges: 24
+    new_ranges: 24 # Samples 24 laser readings from 360 total
     min_range: 0.19
-    max_laser_value: 3.5
+    max_laser_value: 3.5 # truncates laser reading values
     min_laser_value: 0.0
     n_actions: 5
 
@@ -70,12 +71,16 @@ turtlebot3:
     epsilon_end: 0.01
     epsilon_decay: 20000
     n_episodes: 6000
+    avg_reward_window_episodes: 50 # Rolling window size for best-model average reward
+    checkpoint_every_episodes: 500 # Save periodic checkpoint every N episodes
+    target_update: 100 # N.B. unused, right now soft update is implemented
     batch_size: 128
+    min_replay_batches: 15 # Warm-up replay size = batch_size * min_replay_batches
     learning_rate: 0.0003
-    tau: 0.005
+    tau: 0.005 # Soft target update coefficient
     replay_memory_size: 100000
 
-    # Reward settings (consistent with stage 1 scale)
+    # Reward settings
     distance_reward_multiplier: 20.0
     turn_penalty_multiplier: 0.3
     yaw_reward_multiplier: 2.0
@@ -84,7 +89,6 @@ turtlebot3:
     obstacle_hit_penalty: -200
     courage_zone_threshold: 0.5
 
-    # Checkpoint and Mode Settings - Load from stage 1
-    load_pretrained_model: true
-    checkpoint_file: 'best_model_stage2.pth'
-    inference_mode: false
+    # Checkpoint and Mode Settings
+    load_pretrained_model: true # Load model weights from checkpoint
+    checkpoint_file: 'best_model_stage2.pth' # File to load from trained_models directory

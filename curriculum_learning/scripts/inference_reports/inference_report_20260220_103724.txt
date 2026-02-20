@@ -1,0 +1,28 @@
+================================================================================
+TURTLEBOT3 DQN INFERENCE REPORT
+================================================================================
+
+INFERENCE CONFIGURATION
+--------------------------------------------------------------------------------
+Model File: best_model_stage5_raw.pth
+Model Type: dueling_dqn
+Evaluation Episodes: 300
+Device: cpu
+
+EPISODE GOALS
+--------------------------------------------------------------------------------
+Episode 1/300 | Goals: 1
+Episode 2/300 | Goals: 3
+Episode 3/300 | Goals: 0
+Episode 4/300 | Goals: 1
+Episode 5/300 | Goals: 0
+Episode 6/300 | Goals: 1
+Episode 7/300 | Goals: 0
+Episode 8/300 | Goals: 0
+Episode 9/300 | Goals: 2
+Episode 10/300 | Goals: 3
+Episode 11/300 | Goals: 0
+Episode 12/300 | Goals: 1
+Episode 13/300 | Goals: 0
+Episode 14/300 | Goals: 0
+Episode 15/300 | Goals: 1

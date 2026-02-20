@@ -41,31 +41,24 @@ def infer_checkpoint_dims(state_dict, model_type):
         raise RuntimeError(f"Missing expected key in checkpoint state_dict: {e}")
 
 
-def adapt_observation(observation, target_dim):
-    """Adapt observation vector to target model input dimension.
-    Preserves the final 3 goal-related features when possible.
-    """
+def validate_observation(observation, expected_dim, context="observation"):
+    """Validate observation format and fail fast on mismatch."""
     obs = numpy.asarray(observation, dtype=numpy.float32)
-    source_dim = obs.shape[0]
 
-    if source_dim == target_dim:
-        return obs
+    if obs.ndim != 1:
+        raise ValueError(
+            f"Invalid {context} shape: expected 1D vector, got shape {obs.shape}"
+        )
 
-    # Downsample when current observation is larger than model input
-    if source_dim > target_dim:
-        if source_dim >= 3 and target_dim >= 3:
-            laser_source = source_dim - 3
-            laser_target = target_dim - 3
-            if laser_target > 0 and laser_source > 0:
-                idx = numpy.linspace(0, laser_source - 1, num=laser_target, dtype=int)
-                adapted = numpy.concatenate([obs[:laser_source][idx], obs[-3:]])
-                return adapted.astype(numpy.float32)
-        return obs[:target_dim].astype(numpy.float32)
+    if obs.shape[0] != expected_dim:
+        raise ValueError(
+            f"Invalid {context} size: expected {expected_dim}, got {obs.shape[0]}"
+        )
 
-    # Pad when current observation is smaller than model input
-    padded = numpy.zeros((target_dim,), dtype=numpy.float32)
-    padded[:source_dim] = obs
-    return padded
+    if not numpy.all(numpy.isfinite(obs)):
+        raise ValueError(f"Invalid {context}: contains NaN or Inf values")
+
+    return obs
 
 
 
@@ -153,10 +146,14 @@ if __name__ == '__main__':
     policy_net.eval()
 
     if checkpoint_input_dim != env_observations:
-        rospy.logwarn(
-            "Observation-size mismatch: checkpoint expects %d, env provides %d. "
-            "Applying observation adaptation during inference.",
+        rospy.logerr(
+            "Observation-size mismatch: checkpoint expects %d, env provides %d.",
             checkpoint_input_dim, env_observations
+        )
+        env.close()
+        raise RuntimeError(
+            f"Observation format mismatch: model input={checkpoint_input_dim}, "
+            f"env output={env_observations}. Use a compatible checkpoint/config."
         )
 
     if 'max_avg_reward' in checkpoint:
@@ -167,7 +164,7 @@ if __name__ == '__main__':
     rospy.loginfo("RUNNING INFERENCE")
     rospy.loginfo("=" * 50)
 
-    episode_goals = []       # goals reached per episode
+    episode_goals = [] # goals reached per episode
 
     for i_episode in range(n_eval_episodes):
         rospy.loginfo("\n=== Evaluation Episode %d/%d ===" % (i_episode + 1, n_eval_episodes))
@@ -175,8 +172,12 @@ if __name__ == '__main__':
         done = False
 
         observation = env.reset()
-        adapted_observation = adapt_observation(observation, checkpoint_input_dim)
-        state = torch.tensor(adapted_observation, device=device, dtype=torch.float)
+        validated_observation = validate_observation(
+            observation,
+            checkpoint_input_dim,
+            context=f"episode {i_episode + 1} initial observation",
+        )
+        state = torch.tensor(validated_observation, device=device, dtype=torch.float)
 
         for t in count():
             # Greedy action selection (no exploration)
@@ -186,27 +187,28 @@ if __name__ == '__main__':
             observation, reward, done, info = env.step(action.item())
 
             if done:
-                # Retrieve goals reached from the environment
                 goals = getattr(env.unwrapped, 'goals_reached_count', 0)
                 episode_goals.append(goals)
                 reporter.append_episode_result(i_episode, n_eval_episodes, goals)
                 break
 
-            adapted_observation = adapt_observation(observation, checkpoint_input_dim)
-            state = torch.tensor(adapted_observation, device=device, dtype=torch.float)
+            validated_observation = validate_observation(
+                observation,
+                checkpoint_input_dim,
+                context=f"episode {i_episode + 1} step {t + 1} observation",
+            )
+            state = torch.tensor(validated_observation, device=device, dtype=torch.float)
 
     goals_array = numpy.array(episode_goals)
     successful_episodes = int(numpy.sum(goals_array == 3))
     success_rate = (successful_episodes / n_eval_episodes) * 100.0
     avg_goals = numpy.mean(goals_array) if len(goals_array) > 0 else 0
 
-    rospy.loginfo("\n" + "=" * 60)
-    rospy.loginfo("EVALUATION COMPLETE")
     rospy.loginfo("=" * 60)
+    rospy.loginfo("EVALUATION COMPLETE")
     rospy.loginfo("Episodes evaluated       : %d" % n_eval_episodes)
     rospy.loginfo("Success rate             : %.1f%% (%d/%d)" % (success_rate, successful_episodes, n_eval_episodes))
     rospy.loginfo("Average goals per episode: %.2f" % avg_goals)
-    rospy.loginfo("=" * 60)
 
     reporter.write_summary(episode_goals, n_eval_episodes)
 

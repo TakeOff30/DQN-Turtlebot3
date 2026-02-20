@@ -120,7 +120,6 @@ def load_obstacles_from_params(default_speed):
             )
         return obstacles
 
-    # -- Fallback: default Stage 3 rectangular paths --
     rospy.loginfo("[MovingObstacles] No ~paths param found, using default Stage 3 paths")
     path1 = WaypointPath([
         (-1.2, -1.2, 0.3),

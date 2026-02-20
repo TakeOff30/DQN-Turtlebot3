@@ -2,11 +2,10 @@ import rospy
 import numpy
 from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
-from gym.envs.registration import register
-from geometry_msgs.msg import Vector3, Pose, Quaternion
+from geometry_msgs.msg import Quaternion
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
-from gazebo_msgs.srv import SpawnModel, DeleteModel, SetModelState
+from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_msgs.msg import Empty
 import os
@@ -40,26 +39,10 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Here we will add any init functions prior to starting the MyRobotEnv
         super(TurtleBot3WorldEnv, self).__init__(ros_ws_abspath)
 
-        # Only variable needed to be set here
         number_actions = rospy.get_param('/turtlebot3/n_actions')
         self.action_space = spaces.Discrete(number_actions)
 
-        # We set the reward range, which is not compulsory but here we do it.
         self.reward_range = (-numpy.inf, numpy.inf)
-
-
-        #number_observations = rospy.get_param('/turtlebot3/n_observations')
-        """
-        We set the Observation space for the 6 observations
-        cube_observations = [
-            round(current_disk_roll_vel, 0),
-            round(y_distance, 1),
-            round(roll, 1),
-            round(pitch, 1),
-            round(y_linear_speed,1),
-            round(yaw, 1),
-        ]
-        """
 
         # Actions and Observations
         self.linear_forward_speed = rospy.get_param('/turtlebot3/linear_forward_speed')
@@ -107,9 +90,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.courage_zone_threshold = rospy.get_param('/turtlebot3/courage_zone_threshold', 0.5)
         self.yaw_reward_multiplier = rospy.get_param('/turtlebot3/yaw_reward_multiplier', 5)
 
-
-        # # We create two arrays based on the binary values that will be assigned
-        # # In the discretization method.
         laser_scan = self.get_laser_scan()
         
         total_laser_readings = len(laser_scan.ranges)
@@ -118,12 +98,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.loginfo(f"Laser readings: {total_laser_readings} total, sampling every {self.new_ranges}th = {num_laser_readings} readings")
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
         num_laser_readings = len(laser_ranges)
-        # Calculate max possible distance within arena
         
+        # Calculate max possible distance within arena
         self.max_goal_distance = math.sqrt((self.arena_max_x - self.arena_min_x)**2 + 
                                            (self.arena_max_y - self.arena_min_y)**2)
         
-        # Observation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
+        # declare bservation space: [laser_readings..., distance_to_goal, sin(angle), cos(angle)]
         laser_high = numpy.full((num_laser_readings,), self.max_laser_value, dtype=numpy.float32)
         laser_low = numpy.full((num_laser_readings,), self.min_laser_value, dtype=numpy.float32)
         obs_high = numpy.concatenate([laser_high, 
@@ -132,16 +112,21 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                                      numpy.array([0.0, -1.0, -1.0], dtype=numpy.float32)])
         
         obs_dim = num_laser_readings + 3  # laser + [distance_to_goal, sin(angle), cos(angle)]
-        # Observation space includes goal coordinates
         self.observation_space = spaces.Box(obs_low, obs_high, shape=(obs_dim,), dtype=numpy.float32)
 
-        rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
-        rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
+        rospy.logdebug(f"ACTION SPACES TYPE {str(self.action_space)}")
+        rospy.logdebug(f"OBSERVATION SPACES TYPE {str(self.observation_space)}")
 
         self.cumulated_steps = 0.0
         
-        # Inference mode: don't end episode on goal reach, spawn new goal instead
+        # in inference mode we end episode on third goal reached
         self.inference_mode = rospy.get_param('/turtlebot3/inference_mode', False)
+        self.use_fixed_initial_pose = rospy.get_param('/turtlebot3/use_fixed_initial_pose', False)
+        self.gazebo_model_name = rospy.get_param('/turtlebot3/gazebo_model_name', 'turtlebot3_burger')
+        self.fixed_init_x = rospy.get_param('/turtlebot3/fixed_init_x', 0.0)
+        self.fixed_init_y = rospy.get_param('/turtlebot3/fixed_init_y', 0.0)
+        self.fixed_init_z = rospy.get_param('/turtlebot3/fixed_init_z', 0.0)
+        self.fixed_init_yaw = rospy.get_param('/turtlebot3/fixed_init_yaw', 0.0)
         self.goals_reached_count = 0
         self.inference_goal_target_count = rospy.get_param('/turtlebot3/inference_goal_target_count', 3)
         self.inference_third_goal_x = rospy.get_param('/turtlebot3/inference_third_goal_x', 0.0)
@@ -154,6 +139,9 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.previous_distance_to_goal = None
         self.succeed = False
         self.fail = False
+        self._last_min_laser_value = None
+        self._last_front_ranges = []
+        self._last_front_angles = []
         
         # Wait for Gazebo service to move goal marker
         rospy.loginfo("Waiting for Gazebo set_model_state service...")
@@ -163,52 +151,47 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         # Trigger moving obstacles reset at every episode start (if obstacle node is running)
         self.reset_moving_obstacles_pub = rospy.Publisher('/moving_obstacles/reset', Empty, queue_size=1)
-        
         self._move_goal_marker()
-    
-    def _set_init_pose(self):
-        # Inference-only fixed spawn (configured by inference_final.launch) ---
-        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
-        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
 
-        if inference_mode and use_fixed:
-            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
-            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
-            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
-            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
-            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
+    def _update_goal_distance_reference(self):
+        dx = self.goal_x - self.robot_x
+        dy = self.goal_y - self.robot_y
+        self.previous_distance_to_goal = math.sqrt(dx ** 2 + dy ** 2)
 
-            state = ModelState()
-            state.model_name = model_name
-            state.reference_frame = "world"
-            state.pose.position.x = x
-            state.pose.position.y = y
-            state.pose.position.z = z
-            state.pose.orientation = Quaternion(
-                x=0.0,
-                y=0.0,
-                z=math.sin(yaw / 2.0),
-                w=math.cos(yaw / 2.0),
-            )
+    def _set_robot_pose(self, x, y, z, yaw, model_name=None):
+        state = ModelState()
+        state.model_name = model_name or self.gazebo_model_name
+        state.reference_frame = "world"
+        state.pose.position.x = x
+        state.pose.position.y = y
+        state.pose.position.z = z
+        state.pose.orientation = Quaternion(
+            x=0.0,
+            y=0.0,
+            z=math.sin(yaw / 2.0),
+            w=math.cos(yaw / 2.0),
+        )
+        self.set_model_state_srv(state)
 
-            rospy.loginfo(f"[INFERENCE] Spawning robot at fixed position: ({x}, {y}, {z}), yaw={yaw}")
-            rospy.wait_for_service("/gazebo/set_model_state")
-            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
-            set_state(state)
+    def _reset_robot_to_fixed_pose(self, stop_before_reset=False, log_message=None):
+        if stop_before_reset:
+            self.move_base(0.0, 0.0, epsilon=0.05, update_rate=10)
+            rospy.sleep(0.1)
 
-            return True
-        else:
-            # Normal training: use default init speeds
-            self.move_base(self.init_linear_forward_speed,
-                        self.init_linear_turn_speed,
-                        epsilon=0.05,
-                        update_rate=10)
+        self._set_robot_pose(
+            self.fixed_init_x,
+            self.fixed_init_y,
+            self.fixed_init_z,
+            self.fixed_init_yaw,
+            self.gazebo_model_name,
+        )
 
-            return True
+        if log_message:
+            rospy.loginfo(log_message)
 
     def _move_goal_marker(self):
         """Move the existing goal marker to a new position using SetModelState"""
-        angle = random.uniform(0, 2 * math.pi)  # Random direction (0 to 360 degrees)
+        angle = random.uniform(0, 2 * math.pi)  # Random direction angle
         distance = 1.0  # Fixed 1 meter distance in any direction
         
         if self.goal_positions:
@@ -221,16 +204,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             # Clamp to safe arena boundaries
             self.goal_x = numpy.clip(self.goal_x, self.safe_arena_min_x, self.safe_arena_max_x)
             self.goal_y = numpy.clip(self.goal_y, self.safe_arena_min_y, self.safe_arena_max_y)
-        
-        # Calculate actual distance to goal (after clamping)
-        dx = self.goal_x - self.robot_x
-        dy = self.goal_y - self.robot_y
-        self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+
+        self._update_goal_distance_reference()
     
     def _position_goal_marker(self):
-        # Move the goal marker to new position in Gazebo
+        """Move the goal marker to new position in Gazebo"""
         try:
-            # Create model state message
             model_state = ModelState()
             model_state.model_name = 'goal_marker'
             model_state.pose.position.x = self.goal_x
@@ -245,47 +224,22 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
     def _set_init_pose(self):
         """Sets the Robot in its init pose"""
-        # --- Inference-only fixed spawn (configured by inference_final.launch) ---
-        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
-        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
-
-        if inference_mode and use_fixed:
-            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
-            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
-            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
-            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
-            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
-
-             # IMPORTANTE: Ferma il robot PRIMA del riposizionamento
-            self.move_base(0.0, 0.0, epsilon=0.05, update_rate=10)
-            rospy.sleep(0.1)  # Aspetta che il comando venga elaborato
-
-            state = ModelState()
-            state.model_name = model_name
-            state.reference_frame = "world"
-            state.pose.position.x = x
-            state.pose.position.y = y
-            state.pose.position.z = z
-            state.pose.orientation = Quaternion(
-                x=0.0,
-                y=0.0,
-                z=math.sin(yaw / 2.0),
-                w=math.cos(yaw / 2.0),
+        if self.inference_mode and self.use_fixed_initial_pose:
+            self._reset_robot_to_fixed_pose(
+                stop_before_reset=True,
+                log_message=(
+                    f"[INFERENCE] Spawning robot at fixed position: "
+                    f"({self.fixed_init_x}, {self.fixed_init_y}, {self.fixed_init_z}), "
+                    f"yaw={self.fixed_init_yaw}"
+                ),
             )
-
-            rospy.loginfo(f"[INFERENCE] Spawning robot at fixed position: ({x}, {y}, {z}), yaw={yaw}")
-            rospy.wait_for_service("/gazebo/set_model_state")
-            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
-            set_state(state)
-
-            return True
         else:
             self.move_base(self.init_linear_forward_speed,
                         self.init_linear_turn_speed,
                         epsilon=0.05,
                         update_rate=10)
 
-            return True
+        return True
 
     def _init_env_variables(self):
         """
@@ -293,7 +247,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         of an episode. Generates random goal position within arena bounds.
         :return:
         """
-        
         # Reset episode tracking
         self.succeed = False
         self.fail = False
@@ -302,44 +255,19 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         # Reset moving cylinder obstacles to their initial waypoint at episode start
         self.reset_moving_obstacles_pub.publish(Empty())
-        
-          # In inference mode with fixed pose, reposition robot to fixed start
-        inference_mode = rospy.get_param("/turtlebot3/inference_mode", False)
-        use_fixed = rospy.get_param("/turtlebot3/use_fixed_initial_pose", False)
-        
-        if inference_mode and use_fixed:
-            model_name = rospy.get_param("/turtlebot3/gazebo_model_name", "turtlebot3_burger")
-            x = rospy.get_param("/turtlebot3/fixed_init_x", 0.0)
-            y = rospy.get_param("/turtlebot3/fixed_init_y", 0.0)
-            z = rospy.get_param("/turtlebot3/fixed_init_z", 0.0)
-            yaw = rospy.get_param("/turtlebot3/fixed_init_yaw", 0.0)
 
-            state = ModelState()
-            state.model_name = model_name
-            state.reference_frame = "world"
-            state.pose.position.x = x
-            state.pose.position.y = y
-            state.pose.position.z = z
-            state.pose.orientation = Quaternion(
-                x=0.0,
-                y=0.0,
-                z=math.sin(yaw / 2.0),
-                w=math.cos(yaw / 2.0),
+        # In inference mode reposition robot in given initial pose
+        if self.inference_mode and self.use_fixed_initial_pose:
+            self._reset_robot_to_fixed_pose(
+                stop_before_reset=False,
+                log_message=f"[INFERENCE] Reset robot to fixed position: ({self.fixed_init_x}, {self.fixed_init_y})",
             )
-
-            rospy.wait_for_service("/gazebo/set_model_state")
-            set_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
-            set_state(state)
-            rospy.loginfo(f"[INFERENCE] Reset robot to fixed position: ({x}, {y})")
         
     
         self._update_robot_position()
         self._move_goal_marker()  # Generate new random goal each episode
         self._position_goal_marker()  # Place marker in Gazebo
-        
-        dx = self.goal_x - self.robot_x
-        dy = self.goal_y - self.robot_y
-        self.previous_distance_to_goal = math.sqrt(dx*dx + dy*dy)
+        self._update_goal_distance_reference()
 
     def _set_action(self, action):
         """
@@ -361,12 +289,17 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("END Set Action ==>"+str(action))
 
     def _get_obs(self):
+        """Computes laser scans and normalizes values for faster convergence"""
         rospy.logdebug("Start Get Observation ==>")
         
         self._update_robot_position()
         laser_scan = self.get_laser_scan()
 
+        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0)]
+        self._last_min_laser_value = min(valid_ranges) if len(valid_ranges) > 0 else None
+
         laser_ranges, _ = self._compute_laser_scans(laser_scan)
+        self._last_front_ranges, self._last_front_angles = laser_ranges, _
         # Calculate relative goal information
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
@@ -381,13 +314,8 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # Apply normalization
         laser_norm = [min(l, self.max_laser_value) / self.max_laser_value for l in laser_ranges]
         dist_norm = min(distance_to_goal, self.max_goal_distance) / self.max_goal_distance
-        # angle_norm = goal_angle / math.pi
         
-        # The Vector: [Laser0, Laser1, ..., LaserN, Distance, Angle]
-        # full_observations = laser_norm + [dist_norm, angle_norm]
         full_observations = laser_norm + [dist_norm, sin_angle, cos_angle]
-        # full_observations = laser_ranges + [distance_to_goal, goal_angle]
-        # full_observations = laser_ranges + [distance_to_goal, sin_angle, cos_angle]
 
         return numpy.array(full_observations, dtype=numpy.float32)
     
@@ -396,7 +324,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             return True
         if self._is_succeded():
             if self.inference_mode:
-                # In inference: record goal, spawn new one, keep going
+                # In inference end at third episode reached
                 self.goals_reached_count += 1
                 rospy.loginfo(
                     "[INFERENCE] Goal reached (%d/%d)",
@@ -422,9 +350,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                     self._move_goal_marker()
 
                 self._position_goal_marker()
-                dx = self.goal_x - self.robot_x
-                dy = self.goal_y - self.robot_y
-                self.previous_distance_to_goal = math.sqrt(dx**2 + dy**2)
+                self._update_goal_distance_reference()
                 self.succeed = False
                 return False
             return True
@@ -438,16 +364,11 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         3. Maximum steps exceeded
         """
 
-        laser_scan = self.get_laser_scan()
-        
-        # Filter out invalid readings (inf, nan, 0)
-        valid_ranges = [r for r in laser_scan.ranges if not (numpy.isinf(r) or numpy.isnan(r) or r == 0)]
-        
-        if len(valid_ranges) == 0:
+        # Reuse laser data cached in _get_obs() for this step.
+        if self._last_min_laser_value is None:
             rospy.logwarn("No valid laser readings!")
             return False
-            
-        min_laser_value = min(valid_ranges)
+        min_laser_value = self._last_min_laser_value
         
         rospy.logdebug("Min laser distance: %.3f (collision threshold: %.3f)" % (min_laser_value, self.min_range))
         
@@ -477,19 +398,30 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return self.succeed
     
     def _compute_directional_weights(self, relative_angles, max_weight=10.0):
+        """Compute normalized angular weights that prioritize frontal obstacles.
+
+        Obstacles near heading 0 rad receive higher weight than side obstacles.
+        """
+        # Higher power sharpens emphasis around 0 rad.
         power = 6
         raw_weights = (numpy.cos(relative_angles))**power + 0.1
+        # Scale then normalize so weights are comparable across scan densities.
         scaled_weights = raw_weights * (max_weight / numpy.max(raw_weights))
         normalized_weights = scaled_weights / numpy.sum(scaled_weights)
         return normalized_weights
     
     def _compute_weighted_obstacle_reward(self, front_ranges, front_angles):
+        """Compute obstacle penalty using angle-aware weighting and distance decay.
+
+        Closer and more frontal obstacles produce stronger negative reward.
+        """
         if not front_ranges or not front_angles:
             return 0.0
 
         front_ranges = numpy.array(front_ranges)
         front_angles = numpy.array(front_angles)
 
+        # Only consider obstacles within a local danger radius.
         valid_mask = front_ranges <= 0.5
         if not numpy.any(valid_mask):
             return 0.0
@@ -500,18 +432,28 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         relative_angles = numpy.unwrap(front_angles)
         relative_angles[relative_angles > numpy.pi] -= 2 * numpy.pi
 
+        # Frontal obstacles contribute more than lateral ones.
         weights = self._compute_directional_weights(relative_angles, max_weight=10.0)
 
+        # Convert distances to a smooth risk term: very close -> near 1, far -> near 0.
         safe_dists = numpy.clip(front_ranges - 0.25, 1e-2, 3.5)
         decay = numpy.exp(-3.0 * safe_dists)
 
+        # Weighted aggregate risk from all nearby obstacle rays.
         weighted_decay = numpy.dot(weights, decay)
 
+        # Base penalty with extra scaling by weighted proximity risk.
         reward = - (1.0 + 4.0 * weighted_decay)
 
         return reward
     
     def _compute_laser_scans(self, observations):
+        """
+        Computes laser scans and performs min-pooling:
+        - considers only 180 laser scans pointing in front of the robot.
+        - chunks in 24 groups and takes the minimum, more significant, value
+        Reduces input state dimension and training convergence
+        """
         target_ray_count = self.new_ranges
         
         num_of_lidar_rays = len(observations.ranges)
@@ -543,7 +485,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         if len(raw_front_ranges) < target_ray_count:
             return [self.max_laser_value] * target_ray_count, [0.0] * target_ray_count
 
-        # 2. Min-Pooling
+        # Min-Pooling
         chunk_size = int(len(raw_front_ranges) / target_ray_count)
         
         final_ranges = []
@@ -571,7 +513,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return raw_front_ranges, raw_front_angles
     
     def _compute_distance_reward(self, current_distance):
-        # Positive reward if moving towards goal, negative if moving away
+        """ Gives positive reward if moving towards goal, negative if moving away """
         if self.previous_distance_to_goal is not None:
             distance_delta = self.previous_distance_to_goal - current_distance
             distance_reward = distance_delta * self.distance_reward_multiplier
@@ -583,6 +525,7 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         return distance_reward
     
     def _compute_reward(self, observations, done):
+        """Computes cumulated reward"""
         dx = self.goal_x - self.robot_x
         dy = self.goal_y - self.robot_y
         current_distance = math.sqrt(dx**2 + dy**2)
@@ -605,10 +548,12 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     
         # Heading alignment: cos(angle) gives +1 facing goal, -1 facing away
         heading_reward = math.cos(goal_angle) * self.yaw_reward_multiplier
-        
-        laser_scan = self.get_laser_scan()
-        front_ranges, front_angles = self._compute_laser_scans(laser_scan)
-        obstacle_penalty = self._compute_weighted_obstacle_reward(front_ranges, front_angles)
+
+        # Reuse front-sector scan data cached in _get_obs() for this step.
+        obstacle_penalty = self._compute_weighted_obstacle_reward(
+            self._last_front_ranges,
+            self._last_front_angles,
+        )
         
         # Reduce penalty near goal
         if current_distance < self.courage_zone_threshold:
@@ -629,7 +574,6 @@ class TurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
 
     # Internal TaskEnv Methods
-    
     def _update_robot_position(self):
         """
         Update current robot position from odometry data
