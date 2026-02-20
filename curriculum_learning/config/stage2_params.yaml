@@ -5,6 +5,10 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage2_static_obstacles.launch' # Stage 2 world
     stage: 2
+<<<<<<< Updated upstream
+=======
+    model_type: 'dqn'
+>>>>>>> Stashed changes
 
     # Environment parameters
     running_step: 0.03

@@ -5,6 +5,10 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage3_moving_obstacles.launch' # Stage 3 world
     stage: 3
+<<<<<<< Updated upstream
+=======
+    model_type: 'dqn'
+>>>>>>> Stashed changes
 
     # Environment parameters
     running_step: 0.03
@@ -67,8 +71,13 @@ turtlebot3:
     gamma: 0.99
     epsilon_start: 0.5    # Start with partial exploration
     epsilon_end: 0.01
+<<<<<<< Updated upstream
     epsilon_decay: 20000  # Slow decay for moving obstacles
     n_episodes: 6000      # Long training for difficult environment
+=======
+    epsilon_decay: 20000
+    n_episodes: 3000
+>>>>>>> Stashed changes
     batch_size: 128
     learning_rate: 0.00002 # Conservative rate: learn new physics without forgetting navigation
     tau: 0.005 

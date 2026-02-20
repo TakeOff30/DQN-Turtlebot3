@@ -5,6 +5,11 @@ turtlebot3:
     ros_ws_abspath: '/home/ubuntu/simulation_ws'
     launch_file_name: 'stage1_empty.launch' # Stage 1 world
     stage: 1
+<<<<<<< Updated upstream
+=======
+    model_type: 'dqn'
+    # model_type: 'dqn'
+>>>>>>> Stashed changes
 
     # Environment parameters
     running_step: 0.02
